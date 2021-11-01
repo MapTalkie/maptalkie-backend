@@ -10,7 +10,7 @@ namespace MapTalkie.Models
 
     public class ReactionBase
     {
-        public int UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
         public User User { get; set; } = default!;
         public ReactionType Type { get; set; } = ReactionType.HEART;
     }

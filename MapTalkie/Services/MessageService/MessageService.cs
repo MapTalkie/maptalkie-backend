@@ -13,7 +13,7 @@ namespace MapTalkie.Services.MessageService
         {
         }
 
-        public IQueryable<PrivateConversation> QueryPrivateConversations(int userId)
+        public IQueryable<PrivateConversation> QueryPrivateConversations(string userId)
         {
             return DbContext.PrivateConversations.Where(pc => pc.UserHigherId == userId || pc.UserLowerId == userId);
         }

@@ -7,7 +7,7 @@ namespace MapTalkie.Services.MessageService
 {
     public interface IMessageService
     {
-        IQueryable<PrivateConversation> QueryPrivateConversations(int userId);
+        IQueryable<PrivateConversation> QueryPrivateConversations(string userId);
         IQueryable<PrivateMessage> QueryPrivateMessages(int conversationId);
         Task<PrivateMessage?> GetPrivateMessageOrNull(long id);
         Task<PrivateMessage> SendPrivateMessage(int conversationId, int senderId, string text);

@@ -9,29 +9,30 @@ namespace MapTalkie.Controllers
     public class AuthorizedController : Controller
     {
         private readonly UserManager<User> _userManager;
+        private User? _user;
+        private bool _userInitialized = false;
 
         public AuthorizedController(UserManager<User> userManager)
         {
             _userManager = userManager;
         }
 
-        public int? UserId
+        public string? UserId => HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        protected async Task<User?> GetUser()
         {
-            get
-            {
-                var claim = HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier);
-                if (claim == null)
-                    return null;
-                if (int.TryParse(claim.Value, out var value))
-                    return value;
-                return null;
-            }
+            if (_userInitialized) return _user;
+            _user = await GetUserPrivate();
+            _userInitialized = true;
+            return _user;
         }
 
-        protected Task<User?> GetUser()
+        private Task<User?> GetUserPrivate()
         {
             var id = UserId;
-            return id == null ? Task.FromResult<User?>(null) : _userManager.FindByIdAsync(id);
+            if (id == null)
+                return Task.FromResult<User?>(null);
+            return _userManager.FindByIdAsync(id)!;
         }
     }
 }

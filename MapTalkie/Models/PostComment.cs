@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 
 namespace MapTalkie.Models
 {
     public class PostComment
     {
         public long Id { get; set; }
-        public int SenderId { get; set; }
+        public string SenderId { get; set; } = string.Empty;
         public User Sender { get; set; } = default!;
 
         public string Text { get; set; } = string.Empty;
@@ -18,5 +19,7 @@ namespace MapTalkie.Models
 
         public long? ReplyToId { get; set; }
         public PostComment? ReplyTo { get; set; }
+
+        public ICollection<PostComment> Comments { get; set; } = default!;
     }
 }

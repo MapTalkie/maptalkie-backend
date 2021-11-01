@@ -10,6 +10,7 @@ namespace MaptalkieTests
     public class IdentityTestsBase : DbTestsBase
     {
         protected static readonly string PASSWORD = "Password1$_";
+        protected readonly List<string> UserIds = new();
         protected readonly UserManager<User> userManager;
 
         public IdentityTestsBase()
@@ -28,11 +29,14 @@ namespace MaptalkieTests
         {
             var tasks = new List<Task>();
             for (var i = 1; i <= 5; i++)
-                tasks.Add(
-                    userManager.CreateAsync(new User
-                    {
-                        UserName = $"User{i}"
-                    }, PASSWORD));
+            {
+                var user = new User
+                {
+                    UserName = $"User{i}"
+                };
+                tasks.Add(userManager.CreateAsync(user, PASSWORD));
+                UserIds.Add(user.Id);
+            }
 
             Task.WaitAll(tasks.ToArray());
         }

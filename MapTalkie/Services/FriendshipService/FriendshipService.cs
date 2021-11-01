@@ -12,7 +12,7 @@ namespace MapTalkie.Services.FriendshipService
         {
         }
 
-        public async Task EnsureFriendshipRequest(int fromId, int toId)
+        public async Task EnsureFriendshipRequest(string fromId, string toId)
         {
             var fr = await GetFriendshipRecord(fromId, toId);
             if (fr == null)
@@ -27,7 +27,7 @@ namespace MapTalkie.Services.FriendshipService
             }
         }
 
-        public async Task RevokeFriendship(int fromId, int toId)
+        public async Task RevokeFriendship(string fromId, string toId)
         {
             var fr = await GetFriendshipRecord(fromId, toId);
             if (fr != null)
@@ -37,7 +37,7 @@ namespace MapTalkie.Services.FriendshipService
             }
         }
 
-        public async Task<bool> AreFriends(int user1Id, int user2Id)
+        public async Task<bool> AreFriends(string user1Id, string user2Id)
         {
             var count = await DbContext.FriendRequests
                 .Where(fr =>
@@ -47,51 +47,28 @@ namespace MapTalkie.Services.FriendshipService
             return count == 2;
         }
 
-        public Task<bool> SentFriendRequest(int fromId, int toId)
+        public Task<bool> IsFriendRequestSent(string fromId, string toId)
         {
             return DbContext.FriendRequests.Where(fr => fr.FromId == fromId && fr.ToId == toId).AnyAsync();
         }
 
-        public IQueryable<User> QueryFriends(int userId)
+        public IQueryable<User> QueryFriends(string userId)
         {
-            // TODO тесты, тесты и еще раз тесты
             return
                 from user in DbContext.Users
-                join fr1 in DbContext.FriendRequests
-                    on user.Id equals fr1.FromId
-                join fr2 in DbContext.FriendRequests
-                    on user.Id equals fr2.ToId
-                where fr1.ToId == userId && fr2.FromId == userId
+                join outRequest in DbContext.FriendRequests
+                    on user.Id equals outRequest.FromId
+                join inRequest in DbContext.FriendRequests
+                    on user.Id equals inRequest.ToId
+                where inRequest.FromId == userId && outRequest.ToId == userId
                 select user;
         }
 
-        private Task<FriendRequest?> GetFriendshipRecord(int fromId, int toId)
+        private Task<FriendRequest?> GetFriendshipRecord(string fromId, string toId)
         {
             return DbContext.FriendRequests
                 .Where(fr => fr.FromId == fromId && fr.ToId == toId)
                 .FirstOrDefaultAsync()!;
-        }
-
-        private SortedUserIds SortIds(int user1, int user2)
-        {
-            if (user1 > user2)
-            {
-                (user1, user2) = (user2, user1);
-            }
-
-            return new SortedUserIds(user1, user2);
-        }
-
-        private struct SortedUserIds
-        {
-            public int User1;
-            public int User2;
-
-            public SortedUserIds(int user1, int user2)
-            {
-                User1 = user1;
-                User2 = user2;
-            }
         }
     }
 }

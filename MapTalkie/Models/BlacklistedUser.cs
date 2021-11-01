@@ -2,9 +2,9 @@ namespace MapTalkie.Models
 {
     public class BlacklistedUser
     {
-        public User User { get; set; }
-        public int UserId { get; set; }
-        public User BlacklistedBy { get; set; }
-        public int BlacklistedById { get; set; }
+        public User User { get; set; } = default!;
+        public string UserId { get; set; } = string.Empty;
+        public User BlacklistedBy { get; set; } = default!;
+        public string BlacklistedById { get; set; } = string.Empty;
     }
 }

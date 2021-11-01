@@ -14,10 +14,10 @@ namespace MapTalkie.Models
     [Owned]
     public class UserSettings
     {
-        public PrivacySettings Privacy { get; set; } = new PrivacySettings();
+        public PrivacySettings Privacy { get; set; } = new();
     }
 
-    public class User : IdentityUser<int>
+    public class User : IdentityUser
     {
         public UserSettings Settings { get; set; } = new();
     }

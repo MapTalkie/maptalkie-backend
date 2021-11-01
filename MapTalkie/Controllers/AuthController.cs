@@ -1,19 +1,12 @@
-
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
 using MapTalkie.Configuration;
 using MapTalkie.Models;
 using MapTalkie.Services.TokenService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace MapTalkie.Controllers
 {
@@ -21,31 +14,19 @@ namespace MapTalkie.Controllers
     [Route("[controller]")]
     public class AuthController : Controller
     {
-        public class LoginRequest
-        {
-            [Required] public string UserName { get; set; } = string.Empty;
-
-            [Required] public string Password { get; set; } = string.Empty;
-        }
-
-        public class LoginResponse
-        {
-            public string Token { get; set; }
-        }
-        
         [HttpPost("signin")]
         public Task<ActionResult<LoginResponse>> SignIn(
-            [FromBody] LoginRequest body, 
+            [FromBody] LoginRequest body,
             [FromServices] UserManager<User> manager,
             [FromServices] AuthenticationSettings authenticationSettings,
             [FromServices] ITokenService tokenService)
         {
             return SignInPrivate(body, manager, authenticationSettings, tokenService, false);
         }
-        
+
         [HttpPost("hybrid-signin")]
         public Task<ActionResult<LoginResponse>> HybridSignIn(
-            [FromBody] LoginRequest body, 
+            [FromBody] LoginRequest body,
             [FromServices] UserManager<User> manager,
             [FromServices] AuthenticationSettings authenticationSettings,
             [FromServices] ITokenService tokenService)
@@ -70,8 +51,8 @@ namespace MapTalkie.Controllers
                 if (hybrid)
                 {
                     Response.Cookies.Append(
-                        authenticationSettings.HybridCookieName, 
-                        token.Signature, 
+                        authenticationSettings.HybridCookieName,
+                        token.Signature,
                         new CookieOptions
                         {
                             HttpOnly = true,
@@ -88,29 +69,10 @@ namespace MapTalkie.Controllers
 
             return Unauthorized();
         }
-        
-        public class SignUpRequest
-        {
-            [EmailAddress]
-            public string? Email { get; set; }
-            
-            [Required]
-            [MinLength(1)]
-            [MaxLength(100)]
-            public string UserName { get; set; }
-            
-            [MinLength(8)]
-            public string Password { get; set; }
-        }
-
-        public class SignUpResponse
-        {
-            public string Detail { get; set; }
-        }
 
         [HttpPost("signup")]
         public async Task<ActionResult<SignUpResponse>> SignUp(
-            [FromBody] SignUpRequest request, 
+            [FromBody] SignUpRequest request,
             [FromServices] UserManager<User> manager)
         {
             var user = new User
@@ -121,7 +83,36 @@ namespace MapTalkie.Controllers
             var result = await manager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
-            return new SignUpResponse { Detail = "User created successfully"};
+            return new SignUpResponse { Detail = "User created successfully" };
+        }
+
+        public class LoginRequest
+        {
+            [Required] public string UserName { get; set; } = string.Empty;
+
+            [Required] public string Password { get; set; } = string.Empty;
+        }
+
+        public class LoginResponse
+        {
+            public string Token { get; set; }
+        }
+
+        public class SignUpRequest
+        {
+            [EmailAddress] public string? Email { get; set; }
+
+            [Required]
+            [MinLength(1)]
+            [MaxLength(100)]
+            public string UserName { get; set; }
+
+            [MinLength(8)] public string Password { get; set; }
+        }
+
+        public class SignUpResponse
+        {
+            public string Detail { get; set; }
         }
     }
 }

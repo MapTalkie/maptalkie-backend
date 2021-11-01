@@ -1,19 +1,14 @@
-using System;
 using MapTalkie.Configuration;
 using MapTalkie.Models;
 using MapTalkie.Models.Context;
-using MapTalkie.Services.PostService;
-using MapTalkie.Services.TokenService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Net.Http.Headers;
 
 namespace MapTalkie
 {
@@ -32,45 +27,12 @@ namespace MapTalkie
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers();
+            services.AddControllers(c => { });
 
-            services
-                .AddSingleton(provider => provider.GetRequiredService<IConfiguration>().GetJwtSettings())
-                .AddSingleton(provider => provider.GetRequiredService<IConfiguration>().GetAuthenticationSettings());
-
-            services
-                .AddScoped<ITokenService, TokenService>()
-                .AddScoped<IPostService, PostService>();
-
-            services.AddCors(options =>
-            {
-                options.AddDefaultPolicy(builder =>
-                {
-                    if (Env.IsDevelopment())
-                    {
-                        builder.WithOrigins(
-                            "http://localhost:3000", "https://localhost:3000"
-                        );
-                    }
-                    else
-                    {
-                        // TODO
-                        throw new NotImplementedException();
-                    }
-
-                    builder.AllowCredentials();
-                    builder.WithHeaders(HeaderNames.Authorization, HeaderNames.Accept, HeaderNames.CacheControl);
-                });
-            });
-
-            services.AddDbContext<AppDbContext>(options =>
-            {
-                var connectionString = Configuration.GetConnectionString("Default");
-                if (Env.IsDevelopment())
-                    options.UseSqlite(connectionString);
-                else
-                    options.UseNpgsql(connectionString);
-            });
+            services.AddConfiguration();
+            services.AddAppServices();
+            services.AddAppCors(Env);
+            services.AddAppDbContext(Env, Configuration);
 
             services
                 .AddIdentity<User, Role>()
@@ -107,9 +69,9 @@ namespace MapTalkie
 
             app.UseAuthorization();
 
-            app.UseCors();
-
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+
+            app.UseCors();
 
             using var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
             var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();

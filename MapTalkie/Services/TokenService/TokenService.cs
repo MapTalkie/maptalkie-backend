@@ -44,7 +44,7 @@ namespace MapTalkie.Services.TokenService
             {
                 Subject = new ClaimsIdentity(new[]
                 {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+                    new Claim(ClaimTypes.NameIdentifier, user.Id)
                 }),
                 Expires = DateTime.Now.Add(options.Lifetime),
                 Issuer = _jwtSettings.Issuer,

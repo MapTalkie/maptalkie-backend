@@ -11,7 +11,7 @@ namespace MapTalkie.Services.PostService
         public float Latitude { get; set; }
         public float Longitude { get; set; }
 
-        public LatLng From(float lat, float lng)
+        public static LatLng From(float lat, float lng)
         {
             return new LatLng(lat, lng);
         }

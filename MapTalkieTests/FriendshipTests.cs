@@ -1,5 +1,7 @@
 using System.Threading.Tasks;
+using MapTalkie.Models.Context;
 using MapTalkie.Services.FriendshipService;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -17,43 +19,53 @@ namespace MaptalkieTests
         [Fact]
         public async Task UsersAreNotFriendsByDefault()
         {
-            Assert.False(await FriendshipService.AreFriends(1, 2));
+            var id1 = UserIds[0];
+            var id2 = UserIds[1];
+            Assert.False(await FriendshipService.AreFriends(id1, id2));
         }
 
         [Fact]
         public async Task UsersAreNotFriendsIfOneRequestIsNotAccepted()
         {
-            await FriendshipService.EnsureFriendshipRequest(1, 2);
-            Assert.False(await FriendshipService.AreFriends(1, 2));
-            await FriendshipService.EnsureFriendshipRequest(2, 1);
-            await FriendshipService.RevokeFriendship(2, 1);
-            Assert.False(await FriendshipService.AreFriends(1, 2));
+            var id1 = UserIds[0];
+            var id2 = UserIds[1];
+            await FriendshipService.EnsureFriendshipRequest(id1, id2);
+            Assert.False(await FriendshipService.AreFriends(id1, id2));
+            await FriendshipService.EnsureFriendshipRequest(id2, id1);
+            await FriendshipService.RevokeFriendship(id2, id1);
+            Assert.False(await FriendshipService.AreFriends(id1, id2));
         }
 
         [Fact]
         public async Task UsersAreFriendsIfBothRequestsAccepted()
         {
-            await FriendshipService.EnsureFriendshipRequest(1, 2);
-            await FriendshipService.EnsureFriendshipRequest(2, 1);
-            Assert.True(await FriendshipService.AreFriends(1, 2));
+            var id1 = UserIds[0];
+            var id2 = UserIds[1];
+            await FriendshipService.EnsureFriendshipRequest(id1, id2);
+            await FriendshipService.EnsureFriendshipRequest(id2, id1);
+            Assert.True(await FriendshipService.AreFriends(id1, id2));
         }
 
         [Fact]
         public async Task UserIsListedInFriendsListIfThereIsFriendship()
         {
-            await FriendshipService.EnsureFriendshipRequest(1, 2);
-            await FriendshipService.EnsureFriendshipRequest(2, 1);
+            var id1 = UserIds[0];
+            var id2 = UserIds[1];
+            await FriendshipService.EnsureFriendshipRequest(id1, id2);
+            await FriendshipService.EnsureFriendshipRequest(id2, id1);
+            var requests = await ServiceProvider.GetRequiredService<AppDbContext>().FriendRequests.ToListAsync();
+            Assert.Equal(2, requests.Count);
             Assert.Contains(
-                await FriendshipService.GetFriends(1),
-                user => user.Id == 2);
+                await FriendshipService.GetFriends(id1),
+                user => user.Id == id2);
             Assert.Contains(
-                await FriendshipService.GetFriends(2),
-                user => user.Id == 1);
+                await FriendshipService.GetFriends(id2),
+                user => user.Id == id1);
 
-            await FriendshipService.RevokeFriendship(2, 1);
+            await FriendshipService.RevokeFriendship(id2, id1);
 
-            Assert.Empty(await FriendshipService.GetFriends(1));
-            Assert.Empty(await FriendshipService.GetFriends(2));
+            Assert.Empty(await FriendshipService.GetFriends(id1));
+            Assert.Empty(await FriendshipService.GetFriends(id2));
         }
     }
 }

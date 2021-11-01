@@ -6,11 +6,11 @@ namespace MapTalkie.Services.FriendshipService
 {
     public interface IFriendshipService
     {
-        Task EnsureFriendshipRequest(int fromId, int toId);
-        Task RevokeFriendship(int fromId, int toId);
-        Task<bool> AreFriends(int user1Id, int user2Id);
-        Task<bool> SentFriendRequest(int fromId, int toId);
+        Task EnsureFriendshipRequest(string fromId, string toId);
+        Task RevokeFriendship(string fromId, string toId);
+        Task<bool> AreFriends(string user1Id, string user2Id);
+        Task<bool> IsFriendRequestSent(string fromId, string toId);
 
-        IQueryable<User> QueryFriends(int userId);
+        IQueryable<User> QueryFriends(string userId);
     }
 }

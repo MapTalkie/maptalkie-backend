@@ -11,7 +11,7 @@ namespace MapTalkie.Services.PostService
         public LatLng SouthWest { get; }
         public LatLng NorthEast { get; }
 
-        public LatLngBounds From(LatLng southWest, LatLng northEast)
+        public static LatLngBounds From(LatLng southWest, LatLng northEast)
         {
             return new LatLngBounds(southWest, northEast);
         }
