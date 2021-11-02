@@ -28,6 +28,7 @@ namespace MapTalkie.Services.PostService
                 IsOriginalLocation = isOriginalLocation
             };
             DbContext.Posts.Add(message);
+            await DbContext.SaveChangesAsync();
             return message;
         }
 

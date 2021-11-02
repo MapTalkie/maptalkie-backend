@@ -31,19 +31,6 @@ namespace MapTalkie.Controllers
             _context = context;
         }
 
-        #region Get post
-
-        [HttpGet("{id:long}")]
-        public async Task<ActionResult<MapPost>> GetPost([FromRoute] long id)
-        {
-            var post = await _postService.GetPostOrNull(id);
-            if (post != null)
-                return post;
-            return NotFound();
-        }
-
-        #endregion
-
         #region Delete post
 
         [HttpDelete("{id:long}")]
@@ -57,6 +44,26 @@ namespace MapTalkie.Controllers
             _context.Remove(post);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        #endregion
+
+        #region Get post
+
+        [HttpGet("{id:long}")]
+        public async Task<ActionResult<MapPost>> GetPost([FromRoute] long id)
+        {
+            var post = await _postService.GetPostOrNull(id);
+            if (post != null)
+                return post;
+            return NotFound();
+        }
+
+        [HttpGet("geo/{polygon}")]
+        public async Task<ListResponse<MapPost>> FindPostsInArea([FromRoute] Polygon polygon)
+        {
+            return new ListResponse<MapPost>(
+                await _postService.QueryPostsInArea(polygon).ToListAsync());
         }
 
         #endregion
@@ -146,7 +153,7 @@ namespace MapTalkie.Controllers
 
         public class NewCommentRequest
         {
-            public string Text { get; set; }
+            public string Text { get; set; } = string.Empty;
             public long PostId { get; set; }
             public long? ReplyTo { get; set; }
         }

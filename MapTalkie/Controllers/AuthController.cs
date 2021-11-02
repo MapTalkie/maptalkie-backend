@@ -95,7 +95,7 @@ namespace MapTalkie.Controllers
 
         public class LoginResponse
         {
-            public string Token { get; set; }
+            public string Token { get; set; } = string.Empty;
         }
 
         public class SignUpRequest
@@ -105,14 +105,14 @@ namespace MapTalkie.Controllers
             [Required]
             [MinLength(1)]
             [MaxLength(100)]
-            public string UserName { get; set; }
+            public string UserName { get; set; } = string.Empty;
 
-            [MinLength(8)] public string Password { get; set; }
+            [MinLength(8)] public string Password { get; set; } = string.Empty;
         }
 
         public class SignUpResponse
         {
-            public string Detail { get; set; }
+            public string Detail { get; set; } = string.Empty;
         }
     }
 }

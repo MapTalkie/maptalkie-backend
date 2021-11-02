@@ -6,7 +6,7 @@ namespace MapTalkie.Services.CommentService
     {
         public long Id { get; set; }
         public string SenderId { get; set; } = string.Empty;
-        public string Sender { get; set; }
+        public string Sender { get; set; } = string.Empty;
         public DateTime SentAt { get; set; }
 
         public int Replies { get; set; }

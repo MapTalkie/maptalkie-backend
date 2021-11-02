@@ -1,6 +1,7 @@
 using MapTalkie.Configuration;
 using MapTalkie.Models;
 using MapTalkie.Models.Context;
+using MapTalkie.Utils.Binders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -27,7 +28,11 @@ namespace MapTalkie
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers(c => { });
+            services.AddControllers(options =>
+            {
+                options.ModelBinderProviders.Add(
+                    new AppModelBinderProvider());
+            });
 
             services.AddConfiguration();
             services.AddAppServices();
