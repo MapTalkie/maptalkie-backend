@@ -40,11 +40,11 @@ namespace MaptalkieTests
                 new LinearRing(
                     new[]
                     {
-                        new Coordinate(80, 54),
+                        new Coordinate(80, 58),
                         new Coordinate(80, 50),
                         new Coordinate(84, 50),
-                        new Coordinate(84, 54),
-                        new Coordinate(80, 54),
+                        new Coordinate(84, 58),
+                        new Coordinate(80, 58),
                     }));
             var inArea = PostService.QueryPostsInArea(poly);
             Assert.Equal(10, await inArea.CountAsync());
