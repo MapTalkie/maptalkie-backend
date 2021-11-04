@@ -1,9 +1,6 @@
-using MapTalkie.Configuration;
+using MapTalkie.Hubs;
 using MapTalkie.Models;
 using MapTalkie.Models.Context;
-using MapTalkie.Utils.Binders;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -28,36 +25,20 @@ namespace MapTalkie
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllers(options =>
-            {
-                options.ModelBinderProviders.Add(
-                    new AppModelBinderProvider());
-            });
+            services.AddAppControllers();
 
             services.AddConfiguration();
             services.AddAppServices();
             services.AddAppCors(Env);
             services.AddAppDbContext(Env, Configuration);
+            services.AddAppSignalR();
 
             services
                 .AddIdentity<User, Role>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
 
-            services
-                .AddAuthentication()
-                .AddMapTalkieJwtBearer(
-                    Configuration.GetJwtSettings(),
-                    schemaName: JwtBearerDefaults.AuthenticationScheme,
-                    hybridAuthenticationCookie: "_JWTS");
-
-            services.AddAuthorization(auth =>
-            {
-                auth.DefaultPolicy = new AuthorizationPolicyBuilder()
-                    .RequireAuthenticatedUser()
-                    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "HybridJWTBearer")
-                    .Build();
-            });
+            services.AddAppAuthorization(Configuration);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -67,16 +48,28 @@ namespace MapTalkie
             {
                 app.UseDeveloperExceptionPage();
             }
+            else
+            {
+                app.UseHsts();
+            }
 
             app.UseHttpsRedirection();
 
             app.UseRouting();
 
+            // на будущее: UseCors должно стоять до UseAuthorization, чтобы ASP.NET не пытался 
+            // авторизовать OPTIONS запросы
+            app.UseCors();
+
             app.UseAuthorization();
 
-            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+            app.UseWebSockets();
 
-            app.UseCors();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapHub<PostsHub>("/_signalr/posts");
+            });
 
             using var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
             var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();

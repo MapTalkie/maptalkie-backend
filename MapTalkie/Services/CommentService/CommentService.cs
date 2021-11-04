@@ -63,35 +63,29 @@ namespace MapTalkie.Services.CommentService
             return DbContext.PostComments.Where(c => c.Id != commentId).FirstOrDefaultAsync()!;
         }
 
-        public async Task<CommentReaction> ReactTo(long commentId, string userId, ReactionType? reactionType = null)
+        public async Task<CommentHeart> Heart(long commentId, string userId)
         {
-            var reaction = await DbContext.PostCommentReactions
+            var heart = await DbContext.PostCommentHearts
                 .Where(r => r.CommentId == commentId && r.UserId == userId)
                 .FirstOrDefaultAsync();
 
-            if (reaction == null)
+            if (heart == null)
             {
-                reaction = new CommentReaction
+                heart = new CommentHeart
                 {
                     UserId = userId,
-                    CommentId = commentId,
-                    Type = reactionType ?? ReactionType.HEART
+                    CommentId = commentId
                 };
-                DbContext.Add(reaction);
-                await DbContext.SaveChangesAsync();
-            }
-            else if (reaction.Type != (reactionType ?? ReactionType.HEART))
-            {
-                reaction.Type = reactionType ?? ReactionType.HEART;
+                DbContext.Add(heart);
                 await DbContext.SaveChangesAsync();
             }
 
-            return reaction;
+            return heart;
         }
 
-        public async Task RemoveReaction(long commentId, string userId)
+        public async Task RemoveHeart(long commentId, string userId)
         {
-            var reaction = await DbContext.PostCommentReactions
+            var reaction = await DbContext.PostCommentHearts
                 .Where(r => r.CommentId == commentId && r.UserId == userId)
                 .FirstOrDefaultAsync();
             if (reaction != null)

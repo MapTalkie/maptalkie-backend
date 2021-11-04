@@ -23,9 +23,9 @@ namespace MapTalkie.Services.CommentService
 
         Task<PostComment?> GetCommentOrNull(long commentId);
 
-        Task<CommentReaction> ReactTo(long commentId, string userId, ReactionType? reactionType = null);
+        Task<CommentHeart> Heart(long commentId, string userId);
 
-        Task RemoveReaction(long commentId, string userId);
+        Task RemoveHeart(long commentId, string userId);
 
         IQueryable<PostComment> QueryComments(long postId);
 

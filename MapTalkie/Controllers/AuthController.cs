@@ -56,7 +56,8 @@ namespace MapTalkie.Controllers
                         new CookieOptions
                         {
                             HttpOnly = true,
-                            // Secure = true, // TODO remove this comment
+                            SameSite = SameSiteMode.None,
+                            Secure = true, // TODO remove this comment
                             Expires = DateTimeOffset.Now.AddDays(10)
                         });
                 }

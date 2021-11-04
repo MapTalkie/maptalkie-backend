@@ -1,7 +1,8 @@
 using System.Threading.Tasks;
 using MapTalkie.Configuration;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 
@@ -9,42 +10,70 @@ namespace MapTalkie
 {
     public static class AuthenticationExtensions
     {
-        internal static AuthenticationBuilder AddMapTalkieJwtBearer(
-            this AuthenticationBuilder services,
-            JwtSettings jwtSettings,
-            string hybridAuthenticationCookie,
-            string schemaName)
+        private const string HybridAuthenticationSchema = "HybridBearer";
+
+        internal static void AddAppAuthorization(
+            this IServiceCollection services,
+            IConfiguration configuration)
         {
-            return services.AddJwtBearer(schemaName, options =>
+            var auth = services.AddAuthentication();
+            var jwtSettings = configuration.GetJwtSettings();
+            var authSettings = configuration.GetAuthenticationSettings();
+
+            auth.AddJwtBearer(options => { SetupJwtBearerCommonOptions(options, jwtSettings); });
+
+            auth.AddJwtBearer(HybridAuthenticationSchema, options =>
             {
-                options.Events.OnMessageReceived = opts => TryHybridJwtAuthentication(opts, hybridAuthenticationCookie);
-                options.IncludeErrorDetails = true;
-                options.ClaimsIssuer = jwtSettings.Issuer;
-                options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                SetupJwtBearerCommonOptions(options, jwtSettings);
+                options.Events = new JwtBearerEvents
                 {
-                    ValidateIssuer = true,
-                    ValidIssuer = jwtSettings.Issuer,
-
-                    ValidateLifetime = true,
-
-                    ValidAudience = jwtSettings.Audience,
-                    ValidateAudience = jwtSettings.ValidateAudience,
-
-                    IssuerSigningKey = jwtSettings.GetSecurityKey(),
-                    ValidateIssuerSigningKey = true,
+                    OnMessageReceived = opts => TryHybridJwtAuthentication(opts, authSettings.HybridCookieName)
                 };
             });
+
+            services.AddAuthorization(options =>
+            {
+                options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, HybridAuthenticationSchema)
+                    .Build();
+            });
+        }
+
+        private static void SetupJwtBearerCommonOptions(JwtBearerOptions options, JwtSettings jwtSettings)
+        {
+            options.IncludeErrorDetails = true;
+            options.ClaimsIssuer = jwtSettings.Issuer;
+            options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = jwtSettings.Issuer,
+
+                ValidateLifetime = true,
+
+                ValidAudience = jwtSettings.Audience,
+                ValidateAudience = jwtSettings.ValidateAudience,
+
+                IssuerSigningKey = jwtSettings.GetSecurityKey(),
+                ValidateIssuerSigningKey = true,
+            };
         }
 
         private static Task TryHybridJwtAuthentication(MessageReceivedContext context, string cookieName)
         {
             var authorization = context.Request.Headers[HeaderNames.Authorization].ToString();
+            context.Request.Cookies.TryGetValue(cookieName, out var jwtSig);
+
+            if (authorization == string.Empty && jwtSig != null && context.Request.Query.ContainsKey("access_token"))
+            {
+                context.Token = context.Request.Query["access_token"] + "." + jwtSig;
+                return Task.CompletedTask;
+            }
 
             if (!authorization.StartsWith("Bearer ")) return Task.CompletedTask;
             if (!context.Request.Cookies.ContainsKey(cookieName)) return Task.CompletedTask;
 
-            var jwtSig = context.Request.Cookies[cookieName]!;
-            if (jwtSig.Length != 0)
+            if (jwtSig != null)
                 context.Token = authorization["Bearer ".Length..] + "." + jwtSig;
             return Task.CompletedTask;
         }

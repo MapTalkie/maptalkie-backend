@@ -1,16 +1,21 @@
 using System;
+using System.Collections.Generic;
 using MapTalkie.Configuration;
 using MapTalkie.Models.Context;
 using MapTalkie.Services.CommentService;
 using MapTalkie.Services.FriendshipService;
 using MapTalkie.Services.PostService;
 using MapTalkie.Services.TokenService;
+using MapTalkie.Utils.Binders;
+using MapTalkie.Utils.EventBus;
+using MapTalkie.Utils.JsonConverters;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Net.Http.Headers;
+using Newtonsoft.Json;
 
 namespace MapTalkie
 {
@@ -23,6 +28,8 @@ namespace MapTalkie
                 .AddScoped<IFriendshipService, FriendshipService>()
                 .AddScoped<ITokenService, TokenService>()
                 .AddScoped<IPostService, PostService>();
+
+            services.AddSingleton<IEventBus, LocalEventBus>();
         }
 
         public static void AddConfiguration(this IServiceCollection services)
@@ -41,7 +48,10 @@ namespace MapTalkie
                     if (env.IsDevelopment())
                     {
                         builder.WithOrigins(
-                            "http://localhost:3000", "https://localhost:3000"
+                            "http://localhost:3000", "https://localhost:3000",
+                            "http://localhost:5500", "https://localhost:5500",
+                            "http://127.0.0.1:3000", "https://127.0.0.1:3000",
+                            "http://127.0.0.1:5500", "https://127.0.0.1:5500"
                         );
                     }
                     else
@@ -51,7 +61,14 @@ namespace MapTalkie
                     }
 
                     builder.AllowCredentials();
-                    builder.WithHeaders(HeaderNames.Authorization, HeaderNames.Accept, HeaderNames.CacheControl);
+                    builder.AllowAnyMethod();
+
+                    builder.WithHeaders(
+                        HeaderNames.ContentType,
+                        HeaderNames.Authorization,
+                        HeaderNames.Accept,
+                        HeaderNames.XRequestedWith,
+                        HeaderNames.CacheControl);
                 });
             });
         }
@@ -67,6 +84,33 @@ namespace MapTalkie
                 else
                     options.UseNpgsql(connectionString, builder => builder.UseNetTopologySuite());
             });
+        }
+
+        public static void AddAppSignalR(this IServiceCollection collection)
+        {
+            collection
+                .AddSignalR()
+                .AddNewtonsoftJsonProtocol(options =>
+                {
+                    AddJsonConverters(options.PayloadSerializerSettings.Converters);
+                });
+        }
+
+        public static void AddAppControllers(this IServiceCollection collection)
+        {
+            collection
+                .AddControllers(options =>
+                {
+                    options.ModelBinderProviders.Add(
+                        new AppModelBinderProvider());
+                })
+                .AddNewtonsoftJson(options => AddJsonConverters(options.SerializerSettings.Converters));
+        }
+
+        private static void AddJsonConverters(IList<JsonConverter> converters)
+        {
+            converters.Add(new PolygonJsonConverter());
+            converters.Add(new PointJsonConverter());
         }
     }
 }

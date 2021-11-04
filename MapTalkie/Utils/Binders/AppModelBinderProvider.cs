@@ -15,16 +15,7 @@ namespace MapTalkie.Utils.Binders
 
             if (context.Metadata.ModelType.IsAssignableTo(typeof(Geometry)))
             {
-                if (context.Metadata.ModelType == typeof(Point))
-                {
-                    return new PidginBinder<Point>(Parsers.GetInstance().Point, context.Metadata.IsNullableValueType);
-                }
-
-                if (context.Metadata.ModelType == typeof(Polygon))
-                {
-                    return new PidginBinder<Polygon>(Parsers.GetInstance().Polygon,
-                        context.Metadata.IsNullableValueType);
-                }
+                return new WktGeometryBinder(context.Metadata.IsNullableValueType, context.Metadata.ModelType);
             }
 
             return null;
