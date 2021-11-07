@@ -1,6 +1,6 @@
 using System;
 
-namespace MapTalkie.Utils.EventBus.Internal
+namespace MapTalkie.Services.EventBus.Internal
 {
     public class SyncEventHandler<T> : ISyncEventHandler<T>
     {

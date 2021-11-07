@@ -1,6 +1,6 @@
 namespace MapTalkie.Models
 {
-    public class CommentHeart : HeartBase
+    public class CommentLike : LikeBase
     {
         public long CommentId { get; set; }
         public PostComment Comment { get; set; } = default!;

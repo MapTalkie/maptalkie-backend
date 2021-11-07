@@ -24,6 +24,7 @@
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="5.0.10"/>
         <PackageReference Include="Pidgin" Version="2.5.0"/>
         <PackageReference Include="ProjNET" Version="2.0.0"/>
+        <PackageReference Include="Quartz.Extensions.Hosting" Version="3.3.3"/>
         <PackageReference Include="SQLitePCLRaw.bundle_sqlite3" Version="2.0.7"/>
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.13.1"/>
         <PackageReference Include="System.Reactive" Version="5.0.0"/>
@@ -32,6 +33,8 @@
 
     <ItemGroup>
         <Compile Remove="Utils\IPoint.cs"/>
+        <Compile Remove="Services\EventBus\LocalSpatialEventBus.cs"/>
+        <Compile Remove="Services\EventBus\ISpatialEventBus.cs"/>
     </ItemGroup>
 
 

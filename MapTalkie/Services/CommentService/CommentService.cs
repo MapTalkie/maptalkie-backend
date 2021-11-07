@@ -63,15 +63,15 @@ namespace MapTalkie.Services.CommentService
             return DbContext.PostComments.Where(c => c.Id != commentId).FirstOrDefaultAsync()!;
         }
 
-        public async Task<CommentHeart> Heart(long commentId, string userId)
+        public async Task<CommentLike> Like(long commentId, string userId)
         {
-            var heart = await DbContext.PostCommentHearts
+            var heart = await DbContext.PostCommentLikes
                 .Where(r => r.CommentId == commentId && r.UserId == userId)
                 .FirstOrDefaultAsync();
 
             if (heart == null)
             {
-                heart = new CommentHeart
+                heart = new CommentLike
                 {
                     UserId = userId,
                     CommentId = commentId
@@ -83,9 +83,9 @@ namespace MapTalkie.Services.CommentService
             return heart;
         }
 
-        public async Task RemoveHeart(long commentId, string userId)
+        public async Task RemoveLike(long commentId, string userId)
         {
-            var reaction = await DbContext.PostCommentHearts
+            var reaction = await DbContext.PostCommentLikes
                 .Where(r => r.CommentId == commentId && r.UserId == userId)
                 .FirstOrDefaultAsync();
             if (reaction != null)
@@ -99,7 +99,7 @@ namespace MapTalkie.Services.CommentService
         {
             return DbContext.PostComments
                 .Where(c => c.PostId == postId)
-                .OrderByDescending(c => c.SentAt);
+                .OrderByDescending(c => c.CreatedAt);
         }
 
         public IQueryable<PostCommentView> QueryCommentViews(
@@ -109,7 +109,7 @@ namespace MapTalkie.Services.CommentService
         {
             var query = QueryComments(postId);
             if (before != null)
-                query = query.Where(c => c.SentAt < before);
+                query = query.Where(c => c.CreatedAt < before);
 
             var viewQuery =
                 from c in query
@@ -118,7 +118,7 @@ namespace MapTalkie.Services.CommentService
                 {
                     Id = c.Id,
                     SenderId = c.SenderId,
-                    SentAt = c.SentAt,
+                    SentAt = c.CreatedAt,
                     Sender = u.UserName,
                     Replies = c.Comments.Count
                 };

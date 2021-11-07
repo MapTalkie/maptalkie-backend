@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.Models;
 using MapTalkie.Models.Context;
@@ -48,6 +49,20 @@ namespace MapTalkie.Controllers
 
         #endregion
 
+        #region Get popular posts
+
+        [HttpGet("popular/{polygon}")]
+        public async Task<ActionResult<ListResponse<MapPost>>> GetPopularPosts(
+            [FromRoute] Polygon polygon,
+            int limit = 50)
+        {
+            // TODO pagination?
+            var posts = await _postService.GetPopularPosts(limit, polygon, availableFor: await GetUser());
+            return new ListResponse<MapPost>(posts);
+        }
+
+        #endregion
+
         #region Get post
 
         [HttpGet("{id:long}")]
@@ -62,8 +77,8 @@ namespace MapTalkie.Controllers
         [HttpGet("geo/{polygon}")]
         public async Task<ListResponse<MapPost>> FindPostsInArea([FromRoute] Polygon polygon)
         {
-            return new ListResponse<MapPost>(
-                await _postService.QueryPostsInArea(polygon).ToListAsync());
+            // TODO pagination
+            return new ListResponse<MapPost>(await _postService.QueryPosts(polygon).Take(50).ToListAsync());
         }
 
         #endregion

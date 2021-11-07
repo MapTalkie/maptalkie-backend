@@ -6,24 +6,24 @@ using System.Reactive.Disposables;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using MapTalkie.Utils.EventBus.Internal;
+using MapTalkie.Services.EventBus.Internal;
 
-namespace MapTalkie.Utils.EventBus
+namespace MapTalkie.Services.EventBus
 {
     public class LocalEventBus : IEventBus
     {
-        private const int LOCK_TIMEOUT = 15000;
+        private const int LockTimeout = 15000;
         private readonly ConcurrentDictionary<(Type, string), List<IEventHandler>> _factories = new();
 
         private IDisposable Subscribe(string eventName, IEventHandler eventHandler, Type type)
         {
-            WithEventHandlersLocked(type, eventName, LOCK_TIMEOUT, handlers => handlers.Add(eventHandler));
+            WithEventHandlersLocked(type, eventName, LockTimeout, handlers => handlers.Add(eventHandler));
             return Disposable.Create(() => RemoveEventHandler(eventHandler, eventName, type));
         }
 
         private void RemoveEventHandler(IEventHandler eventHandler, string eventName, Type type)
         {
-            WithEventHandlersLocked(type, eventName, LOCK_TIMEOUT, handlers => handlers.Remove(eventHandler));
+            WithEventHandlersLocked(type, eventName, LockTimeout, handlers => handlers.Remove(eventHandler));
         }
 
         #region IEventBus implementation
@@ -36,7 +36,7 @@ namespace MapTalkie.Utils.EventBus
             WithEventHandlersLocked(
                 eventData.GetType(),
                 eventName,
-                LOCK_TIMEOUT,
+                LockTimeout,
                 eventHandlers =>
                 {
                     foreach (var handler in eventHandlers)
@@ -114,11 +114,16 @@ namespace MapTalkie.Utils.EventBus
             Action<List<IEventHandler>> factoriesFn)
         {
             List<IEventHandler> factories;
+            bool hasHandlers = true;
+            var key = (eventType, eventName);
             lock (_factories)
             {
-                var key = (eventType, eventName);
                 if (!_factories.ContainsKey(key))
-                    return;
+                {
+                    factories = new();
+                    hasHandlers = false;
+                }
+
                 factories = _factories[key];
             }
 
@@ -136,6 +141,14 @@ namespace MapTalkie.Utils.EventBus
             else
             {
                 throw new TimeoutException();
+            }
+
+            if (!hasHandlers && factories.Count != 0)
+            {
+                lock (_factories)
+                {
+                    _factories[key] = factories;
+                }
             }
         }
 

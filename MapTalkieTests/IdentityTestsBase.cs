@@ -15,7 +15,6 @@ namespace MaptalkieTests
 
         public IdentityTestsBase()
         {
-            ServiceCollection.AddLogging();
             ServiceCollection
                 .AddIdentity<User, Role>()
                 .AddEntityFrameworkStores<AppDbContext>()

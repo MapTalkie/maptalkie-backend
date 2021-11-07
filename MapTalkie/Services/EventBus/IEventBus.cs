@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace MapTalkie.Utils.EventBus
+namespace MapTalkie.Services.EventBus
 {
     public interface IEventBus
     {
@@ -15,7 +15,8 @@ namespace MapTalkie.Utils.EventBus
         /// <summary>
         /// Подписывается на событие синхронно.
         /// </summary>
-        /// <param name="action"></param>
+        /// <param name="action">Действие, которое нужно совершить</param>
+        /// <param name="eventName">Имя события</param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         IDisposable Subscribe<T>(string eventName, Action<T> action, bool onThreadPool = false);

@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.Models;
@@ -16,11 +15,28 @@ namespace MapTalkie.Services.PostService
 
         Task<MapPost?> GetPostOrNull(long id, bool includeUnavailable = false);
 
-        IQueryable<MapPost> QueryPostsInArea(
-            Geometry geometry,
-            DateTime? before = null,
+        IQueryable<MapPost> QueryPosts(
+            Geometry? geometry = null,
+            bool? available = true,
+            User? availableFor = null);
+
+        IQueryable<MapPost> QueryPopularPosts(
+            int limit = PostServiceDefaults.PopularPostsLimit,
+            Geometry? geometry = null,
+            bool? available = true,
             User? availableFor = null);
 
         Task<bool> IsAvailable(long id);
+
+        Task<double> GetPopularity(long postId);
+
+        Task FavoritePost(MapPost post, string userId);
+
+        Task UnfavoritePost(MapPost post, string userId);
+
+        Task<MapLayerState> GetLayerState(
+            Polygon area,
+            User? availableFor = null,
+            int limit = PostServiceDefaults.PopularPostsLimit);
     }
 }

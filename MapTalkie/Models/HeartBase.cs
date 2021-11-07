@@ -2,7 +2,7 @@ using System;
 
 namespace MapTalkie.Models
 {
-    public class HeartBase
+    public class LikeBase
     {
         public string UserId { get; set; } = string.Empty;
         public User User { get; set; } = default!;

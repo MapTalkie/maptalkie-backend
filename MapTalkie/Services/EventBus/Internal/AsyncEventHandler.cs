@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace MapTalkie.Utils.EventBus.Internal
+namespace MapTalkie.Services.EventBus.Internal
 {
     public class AsyncEventHandler<T> : IEventHandler<T>
     {

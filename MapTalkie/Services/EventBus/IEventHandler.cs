@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace MapTalkie.Utils.EventBus
+namespace MapTalkie.Services.EventBus
 {
     public interface IEventHandler
     {

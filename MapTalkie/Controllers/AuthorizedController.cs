@@ -1,6 +1,8 @@
+using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using MapTalkie.Models;
+using MapTalkie.Utils.ErrorHandling;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,6 +27,14 @@ namespace MapTalkie.Controllers
             _user = await GetUserPrivate();
             _userInitialized = true;
             return _user;
+        }
+
+        protected async Task<User> RequireUser()
+        {
+            var user = await GetUser();
+            if (user == null)
+                throw new HttpException(HttpStatusCode.Unauthorized);
+            return user;
         }
 
         private Task<User?> GetUserPrivate()

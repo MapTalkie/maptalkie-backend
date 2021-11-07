@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using MapTalkie.Configuration;
 using MapTalkie.Models.Context;
 using MapTalkie.Services.CommentService;
+using MapTalkie.Services.EventBus;
 using MapTalkie.Services.FriendshipService;
 using MapTalkie.Services.PostService;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
-using MapTalkie.Utils.EventBus;
 using MapTalkie.Utils.JsonConverters;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
+using Quartz;
 
 namespace MapTalkie
 {
@@ -111,6 +112,23 @@ namespace MapTalkie
         {
             converters.Add(new PolygonJsonConverter());
             converters.Add(new PointJsonConverter());
+        }
+
+        public static void AddAppQuartz(this IServiceCollection services)
+        {
+            services.AddQuartz(q =>
+            {
+                q.UseMicrosoftDependencyInjectionJobFactory();
+
+                q.UseInMemoryStore();
+                q.UseSimpleTypeLoader();
+                q.UseDefaultThreadPool(tp => { tp.MaxConcurrency = 10; });
+            });
+            services.AddQuartzHostedService(options =>
+            {
+                // when shutting down we want jobs to complete gracefully
+                options.WaitForJobsToComplete = true;
+            });
         }
     }
 }

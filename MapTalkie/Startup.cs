@@ -32,6 +32,7 @@ namespace MapTalkie
             services.AddAppCors(Env);
             services.AddAppDbContext(Env, Configuration);
             services.AddAppSignalR();
+            services.AddAppQuartz();
 
             services
                 .AddIdentity<User, Role>()

@@ -10,7 +10,7 @@ namespace MapTalkie.Models
         public User Sender { get; set; } = default!;
 
         public string Text { get; set; } = string.Empty;
-        public DateTime SentAt { get; set; } = default!;
+        public DateTime CreatedAt { get; set; } = default!;
         public DateTime UpdatedAt { get; set; } = default!;
         public bool Available { get; set; } = true;
 
