@@ -52,13 +52,14 @@ namespace MapTalkie.Controllers
         #region Get popular posts
 
         [HttpGet("popular/{polygon}")]
-        public async Task<ActionResult<ListResponse<MapPost>>> GetPopularPosts(
+        public async Task<ActionResult<ListResponse<Post>>> GetPopularPosts(
             [FromRoute] Polygon polygon,
             int limit = 50)
         {
             // TODO pagination?
-            var posts = await _postService.GetPopularPosts(limit, polygon, availableFor: await GetUser());
-            return new ListResponse<MapPost>(posts);
+            var posts = await _postService.QueryPopularPosts(limit, polygon, availableFor: await GetUser())
+                .ToListAsync();
+            return new ListResponse<Post>(posts);
         }
 
         #endregion
@@ -66,7 +67,7 @@ namespace MapTalkie.Controllers
         #region Get post
 
         [HttpGet("{id:long}")]
-        public async Task<ActionResult<MapPost>> GetPost([FromRoute] long id)
+        public async Task<ActionResult<Post>> GetPost([FromRoute] long id)
         {
             var post = await _postService.GetPostOrNull(id);
             if (post != null)
@@ -75,10 +76,10 @@ namespace MapTalkie.Controllers
         }
 
         [HttpGet("geo/{polygon}")]
-        public async Task<ListResponse<MapPost>> FindPostsInArea([FromRoute] Polygon polygon)
+        public async Task<ListResponse<Post>> FindPostsInArea([FromRoute] Polygon polygon)
         {
             // TODO pagination
-            return new ListResponse<MapPost>(await _postService.QueryPosts(polygon).Take(50).ToListAsync());
+            return new ListResponse<Post>(await _postService.QueryPosts(polygon).Take(50).ToListAsync());
         }
 
         #endregion
@@ -94,7 +95,7 @@ namespace MapTalkie.Controllers
 
         public class NewPostResponse
         {
-            public MapPost Post { get; set; } = default!;
+            public Post Post { get; set; } = default!;
         }
 
         [HttpPost]

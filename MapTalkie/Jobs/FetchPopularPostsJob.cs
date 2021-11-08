@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -43,8 +42,6 @@ namespace MapTalkie.Jobs
 
         private async Task UpdateZone(FetchPostsEntry update)
         {
-            var posts = await _postService.GetPopularPosts(geometry: MapUtils.GetAreaPolygon(update.Descriptor));
-            _cache.Set(update.CacheKey, posts, TimeSpan.FromDays(1));
         }
     }
 }

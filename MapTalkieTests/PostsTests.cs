@@ -31,7 +31,7 @@ namespace MaptalkieTests
         [Fact]
         public async Task TestPostsInArea()
         {
-            var posts = new MapPost[10];
+            var posts = new Post[10];
 
             for (var i = 0; i < 10; i++)
                 posts[i] = await CreateSamplePost();
@@ -50,7 +50,7 @@ namespace MaptalkieTests
             Assert.Equal(10, await inArea.CountAsync());
         }
 
-        private async Task<MapPost> CreateSamplePost()
+        private async Task<Post> CreateSamplePost()
         {
             return await PostService.CreateTextPost(
                 $"This is test {Guid.NewGuid()}",
@@ -78,7 +78,7 @@ namespace MaptalkieTests
                             SenderId = UserIds[1]
                         };
 
-                    var post = new MapPost
+                    var post = new Post
                     {
                         UserId = UserIds[0],
                         Text = "Hello!",
@@ -102,7 +102,7 @@ namespace MaptalkieTests
             {
                 for (var i = 0; i < 20; i++)
                 {
-                    var post = new MapPost
+                    var post = new Post
                     {
                         UserId = UserIds[0],
                         Text = "Hello!"

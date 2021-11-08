@@ -18,7 +18,7 @@ namespace MapTalkie.Utils.MapUtils
 
         public static readonly double MercatorAreaRadius = 20048967;
 
-        public static Polygon GetAreaPolygon(MapZoneDescriptor descriptor)
+        public static Polygon GetZonePolygon(MapZoneDescriptor descriptor)
         {
             IList<double[]> transformedPoints;
 
@@ -65,6 +65,7 @@ namespace MapTalkie.Utils.MapUtils
         }
 
         public static void ThrowIfNot4326(Point point) => ThrowIfInvalidSRID(point, 4326);
+
         public static void ThrowIfNot3857(Point point) => ThrowIfInvalidSRID(point, 3857);
 
         #region Конвертация проекции меркатор и WGS84 (SRID 4326)
@@ -100,19 +101,20 @@ namespace MapTalkie.Utils.MapUtils
 
         #endregion
 
-        #region Zoning
+        #region Разбиение на зоны
 
         private const int MinAreaSize = 2000;
 
-        private static IEnumerable<MapZoneDescriptor> EnumerateZoneIds(double radius, double px, double py,
-            double minAreaSize)
+        private static IEnumerable<MapZoneDescriptor> EnumerateZoneIds(double px, double py)
         {
-            double areaSize = radius, cx = 0, cy = 0;
+            // areaSize = radius а не radius * 2 потому что в цикле мы делаем yield начиная со второго 
+            // (индекс 1) уровня, т. е. изначально размер зоны равен половине всего мира, т. е. радиусу
+            double areaSize = MercatorAreaRadius, cx = 0, cy = 0;
             int level = 0, areaId = 0, x = 0, y = 0, multiplier = 1;
 
             yield return new MapZoneDescriptor { Level = 0, Index = 0, CellX = 0, CellY = 0 };
 
-            while (areaSize >= minAreaSize)
+            while (areaSize >= MinAreaSize)
             {
                 level++;
                 multiplier *= 2;
@@ -122,21 +124,21 @@ namespace MapTalkie.Utils.MapUtils
                 if (px < cx)
                 {
                     x2 -= 1;
-                    cx -= radius / multiplier;
+                    cx -= MercatorAreaRadius / multiplier;
                 }
                 else
                 {
-                    cx += radius / multiplier;
+                    cx += MercatorAreaRadius / multiplier;
                 }
 
                 if (py < cy)
                 {
                     y2 -= 1;
-                    cy -= radius / multiplier;
+                    cy -= MercatorAreaRadius / multiplier;
                 }
                 else
                 {
-                    cy += radius / multiplier;
+                    cy += MercatorAreaRadius / multiplier;
                 }
 
                 areaId = x2 + y2 * multiplier;
@@ -151,7 +153,7 @@ namespace MapTalkie.Utils.MapUtils
         public static List<MapZoneDescriptor> GetZones(Point point)
         {
             ThrowIfNot3857(point);
-            return EnumerateZoneIds(MercatorAreaRadius, point.X, point.Y, MinAreaSize).ToList();
+            return EnumerateZoneIds(point.X, point.Y).ToList();
         }
 
         public static MapZoneDescriptor GetZone(Coordinate point, int level)
@@ -161,7 +163,7 @@ namespace MapTalkie.Utils.MapUtils
                 throw new ArgumentException($"{nameof(level)} cannot be less than 0");
             }
 
-            var descriptor = EnumerateZoneIds(MercatorAreaRadius, point.X, point.Y, MinAreaSize).Take(level + 1).Last();
+            var descriptor = EnumerateZoneIds(point.X, point.Y).Take(level + 1).Last();
             return descriptor;
         }
 
@@ -171,6 +173,34 @@ namespace MapTalkie.Utils.MapUtils
             var size = Math.Max(envelope.Height, envelope.Width);
             var level = (int)Math.Ceiling(Math.Log(MercatorAreaRadius * 2 / size, 2));
             return GetZone(envelope.Centre, level);
+        }
+
+        public static double ZoneSize(int level)
+        {
+            return MercatorAreaRadius * 2 / Math.Pow(2, level);
+        }
+
+        public static IEnumerable<MapZoneDescriptor> AllZones()
+        {
+            var level = 0;
+            var areaSize = MercatorAreaRadius * 2;
+            int multiplier = 1, cellsOnLevel = 1;
+
+            while (areaSize >= MinAreaSize)
+            {
+                for (var cellIndex = 0; cellIndex < cellsOnLevel; cellIndex++)
+                    yield return new MapZoneDescriptor
+                    {
+                        Level = level,
+                        Index = cellIndex,
+                        CellY = cellIndex / multiplier,
+                        CellX = cellIndex - (cellIndex / multiplier) * multiplier
+                    };
+                areaSize /= 2;
+                level++;
+                multiplier *= 2;
+                cellsOnLevel *= 4;
+            }
         }
 
         #endregion

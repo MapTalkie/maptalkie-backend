@@ -15,7 +15,7 @@ namespace MapTalkie.Models
         public bool Available { get; set; } = true;
 
         public long PostId { get; set; }
-        public MapPost Post { get; set; } = default!;
+        public Post Post { get; set; } = default!;
 
         public long? ReplyToId { get; set; }
         public PostComment? ReplyTo { get; set; }

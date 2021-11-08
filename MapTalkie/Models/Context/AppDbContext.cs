@@ -24,7 +24,7 @@ namespace MapTalkie.Models.Context
         public virtual DbSet<FriendRequest> FriendRequests { get; set; } = default!;
         public virtual DbSet<BlacklistedUser> BlacklistedUsers { get; set; } = default!;
 
-        public virtual DbSet<MapPost> Posts { get; set; } = default!;
+        public virtual DbSet<Post> Posts { get; set; } = default!;
         public virtual DbSet<PostLike> PostLikes { get; set; } = default!;
         public virtual DbSet<PostComment> PostComments { get; set; } = default!;
         public virtual DbSet<CommentLike> PostCommentLikes { get; set; } = default!;
@@ -41,7 +41,7 @@ namespace MapTalkie.Models.Context
             {
                 builder.HasPostgresExtension("postgis");
 
-                builder.Entity<MapPost>()
+                builder.Entity<Post>()
                     .Property(p => p.Location)
                     .HasColumnType("geography (point)")
                     .HasSrid(4326);

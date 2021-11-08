@@ -7,20 +7,20 @@ namespace MapTalkie.Services.PostService
 {
     public interface IPostService
     {
-        Task<MapPost> CreateTextPost(
+        Task<Post> CreateTextPost(
             string text,
             string userId,
             Point location,
             bool isOriginalLocation);
 
-        Task<MapPost?> GetPostOrNull(long id, bool includeUnavailable = false);
+        Task<Post?> GetPostOrNull(long id, bool includeUnavailable = false);
 
-        IQueryable<MapPost> QueryPosts(
+        IQueryable<Post> QueryPosts(
             Geometry? geometry = null,
             bool? available = true,
             User? availableFor = null);
 
-        IQueryable<MapPost> QueryPopularPosts(
+        IQueryable<Post> QueryPopularPosts(
             int limit = PostServiceDefaults.PopularPostsLimit,
             Geometry? geometry = null,
             bool? available = true,
@@ -28,15 +28,15 @@ namespace MapTalkie.Services.PostService
 
         Task<bool> IsAvailable(long id);
 
-        Task<double> GetPopularity(long postId);
+        Task<PostPopularity> GetPopularity(long postId);
 
-        Task FavoritePost(MapPost post, string userId);
+        Task FavoritePost(Post post, string userId);
 
-        Task UnfavoritePost(MapPost post, string userId);
+        Task UnfavoritePost(Post post, string userId);
 
         Task<MapLayerState> GetLayerState(
-            Polygon area,
+            Polygon polygon,
             User? availableFor = null,
-            int limit = PostServiceDefaults.PopularPostsLimit);
+            bool byPassCache = false);
     }
 }
