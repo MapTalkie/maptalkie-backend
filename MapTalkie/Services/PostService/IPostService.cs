@@ -21,7 +21,11 @@ namespace MapTalkie.Services.PostService
             User? availableFor = null);
 
         IQueryable<Post> QueryPopularPosts(
-            int limit = PostServiceDefaults.PopularPostsLimit,
+            Geometry? geometry = null,
+            bool? available = true,
+            User? availableFor = null);
+
+        IQueryable<PostPopularity> QueryPopularity(
             Geometry? geometry = null,
             bool? available = true,
             User? availableFor = null);
@@ -33,10 +37,5 @@ namespace MapTalkie.Services.PostService
         Task FavoritePost(Post post, string userId);
 
         Task UnfavoritePost(Post post, string userId);
-
-        Task<MapLayerState> GetLayerState(
-            Polygon polygon,
-            User? availableFor = null,
-            bool byPassCache = false);
     }
 }

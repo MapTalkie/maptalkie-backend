@@ -6,6 +6,5 @@ namespace MapTalkie.Services.PostService.Events
     {
         public Point Location { get; set; }
         public PostPopularity Popularity { get; set; } = new();
-        public long PostId { get; set; }
     }
 }

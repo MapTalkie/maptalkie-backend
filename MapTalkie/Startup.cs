@@ -33,6 +33,7 @@ namespace MapTalkie
             services.AddAppDbContext(Env, Configuration);
             services.AddAppSignalR();
             services.AddAppQuartz();
+            services.AddMemoryCache();
 
             services
                 .AddIdentity<User, Role>()
@@ -69,7 +70,7 @@ namespace MapTalkie
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.MapHub<PostsHub>("/_signalr/posts");
+                endpoints.MapHub<MainUserHub>("/_signalr/main");
             });
 
             using var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();

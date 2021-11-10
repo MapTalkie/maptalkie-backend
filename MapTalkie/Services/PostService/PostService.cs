@@ -45,7 +45,7 @@ namespace MapTalkie.Services.PostService
             };
             DbContext.Posts.Add(post);
             await DbContext.SaveChangesAsync();
-            await OnPostCreated(post);
+            //await OnPostCreated(post);
             return post;
         }
 
@@ -81,24 +81,53 @@ namespace MapTalkie.Services.PostService
             return query;
         }
 
-        public IQueryable<Post> QueryPopularPosts(
-            int limit = PostServiceDefaults.PopularPostsLimit,
+        public IQueryable<dynamic> QueryPostViews(
+            PostView view,
             Geometry? geometry = null,
             bool? available = true,
             User? availableFor = null)
         {
             var query = QueryPosts(geometry, available, availableFor);
-
-            query = from p in query
-                let comments = (from c in DbContext.PostComments where c.PostId == p.Id select c).Count()
-                let likes = (from l in DbContext.PostLikes where l.PostId == p.Id select l).Count()
-                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
-                let rank = comments + likes * 2
-                orderby rank descending
-                select p;
-
-            return query.Take(limit);
+            return MakePostViewQuery(query, view);
         }
+
+        public IQueryable<dynamic> QueryPopularPostViews(PostView view, Geometry? geometry = null,
+            bool? available = true, User? availableFor = null)
+        {
+            return MakePostViewQuery(QueryPopularPosts(geometry, available, availableFor), view);
+        }
+
+        private IQueryable<object> MakePostViewQuery(IQueryable<Post> query, PostView view)
+        {
+            IQueryable<dynamic> viewQuery = query;
+
+            switch (view)
+            {
+                case PostView.Minimal:
+                    viewQuery = query.Select(p => new
+                    {
+                        p.Id, p.CreatedAt, p.UserId, p.User.UserName,
+                        p.Location, p.IsOriginalLocation, p.UpdatedAt,
+                        Likes = p.Likes.Count,
+                        Reposts = 0,
+                        Comments = p.Comments.Count
+                    });
+                    break;
+                case PostView.Full:
+                    viewQuery = query.Select(p => new
+                    {
+                        p.Id, p.CreatedAt, p.UserId, p.User.UserName,
+                        p.Location, p.IsOriginalLocation, p.UpdatedAt, p.Text,
+                        Likes = p.Likes.Count,
+                        Reposts = 0,
+                        Comments = p.Comments.Count
+                    });
+                    break;
+            }
+
+            return viewQuery;
+        }
+
 
         private struct PopularPost
         {
@@ -226,12 +255,35 @@ namespace MapTalkie.Services.PostService
             var zones = MapUtils.GetZones(post.Location);
             foreach (var zone in zones)
             {
+                var maxRadius = MapUtils.ClusterMaxRadius(zone.Level);
+                var cluster = await (
+                    from c in DbContext.PostClusters
+                    let dist = c.Location.Distance(post.Location)
+                    orderby dist
+                    where dist <= maxRadius
+                    select c).FirstOrDefaultAsync();
+                if (cluster == null)
+                {
+                    cluster = new PostCluster
+                    {
+                        Level = zone.Level,
+                        Location = post.Location
+                    };
+                    DbContext.Add(cluster);
+                }
+                else
+                {
+                    var mercator = MapUtils.LatLonToMercator(post.Location);
+                }
+
                 // TODO add in batches
                 var clusters = await GetClustersForZone(zone);
                 await clusters.Semaphore.WaitAsync();
                 clusters.Rtefc.Add(post.Location.Coordinate, 1);
                 clusters.Semaphore.Release();
             }
+
+            await DbContext.SaveChangesAsync();
         }
 
         #endregion
@@ -260,14 +312,74 @@ namespace MapTalkie.Services.PostService
 
         #region Все связанное с популярностью
 
+        private struct PostWithPopularity
+        {
+            public Post Post { get; set; }
+            public PostPopularity Popularity { get; set; }
+        }
+
+        private IQueryable<PostWithPopularity> QueryPostsWithPopularity(
+            Geometry? geometry = null,
+            bool? available = true,
+            User? availableFor = null)
+        {
+            var query = from p in QueryPosts(geometry, available, availableFor)
+                let comments = p.Comments.Count
+                let likes = p.Likes.Count
+                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
+                let freshRank = comments + likes * 2
+                let rank = freshRank * timeDecay
+                orderby rank descending
+                select new PostWithPopularity
+                {
+                    Post = p,
+                    Popularity = new PostPopularity
+                    {
+                        PostId = p.Id,
+                        Reposts = 0,
+                        Comments = comments,
+                        TimeDecayFactor = timeDecay,
+                        Rank = rank,
+                        FreshRank = freshRank,
+                        Likes = likes
+                    }
+                };
+
+            return query;
+        }
+
+        public IQueryable<Post> QueryPopularPosts(
+            Geometry? geometry = null,
+            bool? available = true,
+            User? availableFor = null)
+        {
+            var query = from p in QueryPosts(geometry, available, availableFor)
+                let comments = p.Comments.Count
+                let likes = p.Likes.Count
+                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
+                let freshRank = comments + likes * 2
+                let rank = freshRank * timeDecay
+                orderby rank descending
+                select p;
+
+            return query;
+        }
+
+        public IQueryable<PostPopularity> QueryPopularity(
+            Geometry? geometry = null,
+            bool? available = true,
+            User? availableFor = null)
+        {
+            return QueryPostsWithPopularity(geometry, available, availableFor).Select(pp => pp.Popularity);
+        }
+
         private async Task OnPopularityChange(Post post)
         {
             var popularity = await GetPopularity(post.Id);
-            await _eventBus.Trigger(post.Id.ToString(), new PostEngagement
+            await _eventBus.Trigger(post.Id, new PostEngagement
             {
                 Popularity = popularity,
                 Location = post.Location,
-                PostId = post.Id
             });
 
             await AdjustPopularityCache(post, popularity);
@@ -361,22 +473,7 @@ namespace MapTalkie.Services.PostService
 
         public Task<PostPopularity> GetPopularity(long postId)
         {
-            var query = from p in DbContext.Posts
-                let comments = (from c in DbContext.PostComments where c.PostId == p.Id select c).Count()
-                let likes = (from l in DbContext.PostLikes where l.PostId == p.Id select l).Count()
-                let timeDecay = CalculateDecay(p.CreatedAt)
-                let freshRank = comments + likes * 2
-                let rank = (comments + likes * 2) * timeDecay
-                select new PostPopularity
-                {
-                    Likes = likes,
-                    Reposts = 0,
-                    Rank = rank,
-                    FreshRank = freshRank,
-                    TimeDecayFactor = timeDecay,
-                    Comments = comments
-                };
-            return query.FirstOrDefaultAsync();
+            return QueryPopularity(available: null).Where(p => p.PostId == postId).FirstOrDefaultAsync();
         }
 
         private static double CalculateDecay(DateTime dt) => Math.Exp(-(DateTime.Now - dt).TotalHours);

@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using MapTalkie.Services.EventBus.Internal;
+using Microsoft.Extensions.Logging;
 
 namespace MapTalkie.Services.EventBus
 {
@@ -14,6 +15,12 @@ namespace MapTalkie.Services.EventBus
     {
         private const int LockTimeout = 15000;
         private readonly ConcurrentDictionary<(Type, string), List<IEventHandler>> _factories = new();
+        private readonly ILogger<LocalEventBus> _logger;
+
+        public LocalEventBus(ILogger<LocalEventBus> logger)
+        {
+            _logger = logger;
+        }
 
         private IDisposable Subscribe(string eventName, IEventHandler eventHandler, Type type)
         {
@@ -32,7 +39,7 @@ namespace MapTalkie.Services.EventBus
         {
             var tasks = new List<Task<Exception?>>();
             var exceptions = new List<Exception>();
-
+            _logger.LogDebug("Triggered {0} with type {1}", eventName, eventData, GetType());
             WithEventHandlersLocked(
                 eventData.GetType(),
                 eventName,
@@ -121,6 +128,7 @@ namespace MapTalkie.Services.EventBus
                 if (!_factories.ContainsKey(key))
                 {
                     factories = new();
+                    _factories[key] = factories;
                     hasHandlers = false;
                 }
 

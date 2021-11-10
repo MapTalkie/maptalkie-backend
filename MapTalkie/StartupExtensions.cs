@@ -5,6 +5,7 @@ using MapTalkie.Models.Context;
 using MapTalkie.Services.CommentService;
 using MapTalkie.Services.EventBus;
 using MapTalkie.Services.FriendshipService;
+using MapTalkie.Services.MessageService;
 using MapTalkie.Services.PostService;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
@@ -28,6 +29,7 @@ namespace MapTalkie
                 .AddScoped<ICommentService, CommentService>()
                 .AddScoped<IFriendshipService, FriendshipService>()
                 .AddScoped<ITokenService, TokenService>()
+                .AddScoped<IMessageService, MessageService>()
                 .AddScoped<IPostService, PostService>();
 
             services.AddSingleton<IEventBus, LocalEventBus>();
@@ -102,8 +104,8 @@ namespace MapTalkie
             collection
                 .AddControllers(options =>
                 {
-                    options.ModelBinderProviders.Add(
-                        new AppModelBinderProvider());
+                    options.ModelBinderProviders.Insert(
+                        0, new AppModelBinderProvider());
                 })
                 .AddNewtonsoftJson(options => AddJsonConverters(options.SerializerSettings.Converters));
         }

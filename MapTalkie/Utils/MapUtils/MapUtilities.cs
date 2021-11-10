@@ -68,6 +68,11 @@ namespace MapTalkie.Utils.MapUtils
 
         public static void ThrowIfNot3857(Point point) => ThrowIfInvalidSRID(point, 3857);
 
+        public static bool IsSameArea(Polygon poly1, Polygon poly2)
+        {
+            return GetZone(poly1).ToIdentifier() == GetZone(poly2).ToIdentifier();
+        }
+
         #region Конвертация проекции меркатор и WGS84 (SRID 4326)
 
         public static Point LatLonToMercator(Point point)
@@ -179,6 +184,8 @@ namespace MapTalkie.Utils.MapUtils
         {
             return MercatorAreaRadius * 2 / Math.Pow(2, level);
         }
+
+        public static double ClusterMaxRadius(int level) => ZoneSize(level) / 5;
 
         public static IEnumerable<MapZoneDescriptor> AllZones()
         {

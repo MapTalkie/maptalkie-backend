@@ -23,11 +23,11 @@ namespace MapTalkie.Models.Context
         public virtual DbSet<Attachment> Attachments { get; set; } = default!;
         public virtual DbSet<FriendRequest> FriendRequests { get; set; } = default!;
         public virtual DbSet<BlacklistedUser> BlacklistedUsers { get; set; } = default!;
-
         public virtual DbSet<Post> Posts { get; set; } = default!;
         public virtual DbSet<PostLike> PostLikes { get; set; } = default!;
         public virtual DbSet<PostComment> PostComments { get; set; } = default!;
         public virtual DbSet<CommentLike> PostCommentLikes { get; set; } = default!;
+        public virtual DbSet<PostCluster> PostClusters { get; set; } = default!;
 
 
         public virtual DbSet<PrivateMessage> PrivateMessages { get; set; } = default!;

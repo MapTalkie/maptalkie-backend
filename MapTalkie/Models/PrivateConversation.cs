@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace MapTalkie.Models
 {
@@ -12,5 +14,7 @@ namespace MapTalkie.Models
 
         public DateTime HiddenBoundForLowerUser { get; set; } = DateTime.MinValue;
         public DateTime HiddenBoundForHigherUser { get; set; } = DateTime.MinValue;
+
+        [IgnoreDataMember] public ICollection<PrivateMessage> PrivateMessages { get; set; }
     }
 }

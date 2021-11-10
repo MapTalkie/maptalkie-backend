@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.Utils.MapUtils;
@@ -11,20 +12,32 @@ namespace MapTalkie.Services.EventBus
     {
         public static void AddEventBus(this IServiceCollection collection)
         {
-            collection.AddSingleton<IEventBus>(new LocalEventBus());
+            collection.AddSingleton<IEventBus, LocalEventBus>();
         }
+
+        #region Multi-trigger
+
+        public static Task Trigger(this IEventBus eventBus, IEnumerable<string> eventNames, object data)
+            => Task.WhenAll(eventNames.Select(eventName => eventBus.Trigger(eventName, data)));
+
+        #endregion
 
         #region Event bus shortcuts
 
         public static Task Trigger(this IEventBus eventBus, object eventData)
             => eventBus.Trigger(string.Empty, eventData);
 
+        public static Task Trigger(this IEventBus eventBus, long eventId, object eventData)
+            => eventBus.Trigger(eventId.ToString(), eventData);
 
         public static IDisposable Subscribe<T>(this IEventBus eventBus, Action<T> action)
             => eventBus.Subscribe(string.Empty, action);
 
         public static IDisposable Subscribe<T>(this IEventBus eventBus, Func<T, Task> func)
             => eventBus.Subscribe(string.Empty, func);
+
+        public static IDisposable Subscribe<T>(this IEventBus eventBus, long eventId, Func<T, Task> func)
+            => eventBus.Subscribe(eventId.ToString(), func);
 
         #endregion
 

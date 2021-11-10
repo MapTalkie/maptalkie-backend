@@ -10,16 +10,24 @@ namespace MapTalkie.Controllers
 {
     public class AuthorizedController : Controller
     {
-        private readonly UserManager<User> _userManager;
+        protected readonly UserManager<User> UserManager;
         private User? _user;
         private bool _userInitialized = false;
 
         public AuthorizedController(UserManager<User> userManager)
         {
-            _userManager = userManager;
+            UserManager = userManager;
         }
 
         public string? UserId => HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        protected string RequireUserId()
+        {
+            var userId = UserId;
+            if (userId == null)
+                throw new HttpException(HttpStatusCode.Unauthorized);
+            return userId;
+        }
 
         protected async Task<User?> GetUser()
         {
@@ -42,7 +50,7 @@ namespace MapTalkie.Controllers
             var id = UserId;
             if (id == null)
                 return Task.FromResult<User?>(null);
-            return _userManager.FindByIdAsync(id)!;
+            return UserManager.FindByIdAsync(id)!;
         }
     }
 }

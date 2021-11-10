@@ -1,11 +1,15 @@
 using System;
+using System.Runtime.Serialization;
 
 namespace MapTalkie.Models
 {
     public class Message
     {
         public long Id { get; set; }
-        public int SenderId { get; set; }
+        public string SenderId { get; set; } = string.Empty;
+        [IgnoreDataMember] public User Sender { get; set; } = default!;
+        public string RecipientId { get; set; } = string.Empty;
+        [IgnoreDataMember] public User Recipient { get; set; } = default!;
         public string Text { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; } = null;

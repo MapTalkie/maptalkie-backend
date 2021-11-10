@@ -49,22 +49,7 @@ namespace MapTalkie.Controllers
 
         #endregion
 
-        #region Get popular posts
-
-        [HttpGet("popular/{polygon}")]
-        public async Task<ActionResult<ListResponse<Post>>> GetPopularPosts(
-            [FromRoute] Polygon polygon,
-            int limit = 50)
-        {
-            // TODO pagination?
-            var posts = await _postService.QueryPopularPosts(limit, polygon, availableFor: await GetUser())
-                .ToListAsync();
-            return new ListResponse<Post>(posts);
-        }
-
-        #endregion
-
-        #region Get post
+        #region Получить пост(ы)
 
         [HttpGet("{id:long}")]
         public async Task<ActionResult<Post>> GetPost([FromRoute] long id)
@@ -78,8 +63,41 @@ namespace MapTalkie.Controllers
         [HttpGet("geo/{polygon}")]
         public async Task<ListResponse<Post>> FindPostsInArea([FromRoute] Polygon polygon)
         {
-            // TODO pagination
             return new ListResponse<Post>(await _postService.QueryPosts(polygon).Take(50).ToListAsync());
+        }
+
+        [HttpGet("geo/closest/{point}")]
+        public async Task<ActionResult> FindPostsNearby([FromRoute] Point point)
+        {
+            var posts = await _postService
+                .QueryPosts(availableFor: await RequireUser())
+                .Select(p => new { Distance = p.Location.Distance(point), Post = p })
+                .OrderBy(p => p.Distance)
+                .Select(p => new { Post = SelectPostView(p.Post), p.Distance })
+                .ToListAsync();
+            return Json(ListResponse.Of(posts));
+        }
+
+        [HttpGet("geo/popular/{polygon}")]
+        public async Task<IActionResult> GetPopularPosts(
+            [FromRoute] Polygon polygon,
+            [FromQuery] int limit = 50)
+        {
+            var posts = await _postService
+                .QueryPopularPosts(polygon, availableFor: await GetUser())
+                .Select(p => SelectPostView(p))
+                .Take(limit)
+                .ToListAsync();
+            return Json(ListResponse.Of(posts));
+        }
+
+        private static dynamic SelectPostView(Post p)
+        {
+            return new
+            {
+                p.Id, p.CreatedAt, p.Text, p.User.UserName, p.UserId, p.Location, p.IsOriginalLocation,
+                Likes = p.Likes.Count, Reposts = 0, Comments = p.Comments.Count
+            };
         }
 
         #endregion

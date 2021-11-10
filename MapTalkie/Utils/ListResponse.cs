@@ -11,4 +11,9 @@ namespace MapTalkie.Utils
 
         public List<T> Items { get; set; }
     }
+
+    public static class ListResponse
+    {
+        public static ListResponse<T> Of<T>(List<T> list) => new ListResponse<T>(list);
+    }
 }
