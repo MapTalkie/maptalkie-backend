@@ -7,6 +7,7 @@ using MapTalkie.Services.TokenService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace MapTalkie.Controllers
 {
@@ -18,10 +19,10 @@ namespace MapTalkie.Controllers
         public Task<ActionResult<LoginResponse>> SignIn(
             [FromBody] LoginRequest body,
             [FromServices] UserManager<User> manager,
-            [FromServices] AuthenticationSettings authenticationSettings,
+            [FromServices] IOptions<AuthenticationSettings> authenticationSettings,
             [FromServices] ITokenService tokenService)
         {
-            return SignInPrivate(body, manager, authenticationSettings, tokenService, false);
+            return SignInPrivate(body, manager, authenticationSettings.Value, tokenService, false);
         }
 
         [HttpPost("hybrid-signin")]

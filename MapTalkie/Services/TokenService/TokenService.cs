@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using MapTalkie.Configuration;
 using MapTalkie.Models;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace MapTalkie.Services.TokenService
@@ -12,9 +13,9 @@ namespace MapTalkie.Services.TokenService
         private JwtSettings _jwtSettings;
         private JwtSecurityTokenHandler _tokenHandler = new();
 
-        public TokenService(JwtSettings jwtSettings)
+        public TokenService(IOptions<JwtSettings> jwtSettings)
         {
-            _jwtSettings = jwtSettings;
+            _jwtSettings = jwtSettings.Value;
         }
 
         public JwtSecurityToken GenerateToken(User user, MapTalkieTokenOptions options)

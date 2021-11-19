@@ -1,6 +1,8 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.Models;
+using MapTalkie.Services.PostService.Events;
 using NetTopologySuite.Geometries;
 
 namespace MapTalkie.Services.PostService
@@ -36,6 +38,10 @@ namespace MapTalkie.Services.PostService
 
         Task FavoritePost(Post post, string userId);
 
-        Task UnfavoritePost(Post post, string userId);
+        Task UnFavoritePost(Post post, string userId);
+
+        IDisposable SubscribeToEngagement(long postId, Func<PostEngagement, Task> callback);
+
+        IDisposable SubscribeToEngagement(Polygon polygon, Func<PostEngagement, Task> callback);
     }
 }

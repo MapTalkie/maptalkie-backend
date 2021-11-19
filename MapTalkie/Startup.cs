@@ -1,3 +1,4 @@
+using MapTalkie.Configuration;
 using MapTalkie.Hubs;
 using MapTalkie.Models;
 using MapTalkie.Models.Context;
@@ -22,12 +23,11 @@ namespace MapTalkie
         private IWebHostEnvironment Env { get; }
 
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddAppControllers();
 
-            services.AddConfiguration();
+            services.ConfigureAll(Configuration);
             services.AddAppServices();
             services.AddAppCors(Env);
             services.AddAppDbContext(Env, Configuration);
@@ -40,7 +40,9 @@ namespace MapTalkie
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
 
-            services.AddAppAuthorization(Configuration);
+            services.AddAppAuthorization(
+                Configuration.GetSection<JwtSettings>(),
+                Configuration.GetSection<AuthenticationSettings>());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

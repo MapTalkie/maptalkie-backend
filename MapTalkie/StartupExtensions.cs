@@ -35,11 +35,11 @@ namespace MapTalkie
             services.AddSingleton<IEventBus, LocalEventBus>();
         }
 
-        public static void AddConfiguration(this IServiceCollection services)
+        public static void ConfigureAll(this IServiceCollection services, IConfiguration configuration)
         {
-            services
-                .AddSingleton(provider => provider.GetRequiredService<IConfiguration>().GetJwtSettings())
-                .AddSingleton(provider => provider.GetRequiredService<IConfiguration>().GetAuthenticationSettings());
+            services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
+            services.Configure<AuthenticationSettings>(configuration.GetSection(nameof(AuthenticationSettings)));
+            services.Configure<PostOptions>(configuration.GetSection(nameof(PostOptions)));
         }
 
         public static void AddAppCors(this IServiceCollection services, IWebHostEnvironment env)

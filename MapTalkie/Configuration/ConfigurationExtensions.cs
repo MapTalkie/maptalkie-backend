@@ -4,14 +4,9 @@ namespace MapTalkie.Configuration
 {
     public static class ConfigurationExtensions
     {
-        internal static JwtSettings GetJwtSettings(this IConfiguration configuration)
+        internal static T GetSection<T>(this IConfiguration configuration)
         {
-            return configuration.GetSection("JwtSettings").Get<JwtSettings>();
-        }
-
-        internal static AuthenticationSettings GetAuthenticationSettings(this IConfiguration configuration)
-        {
-            return configuration.GetSection("AuthenticationSettings").Get<AuthenticationSettings>();
+            return configuration.GetSection(nameof(T)).Get<T>();
         }
     }
 }

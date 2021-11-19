@@ -1,31 +1,35 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MapTalkie.Configuration;
 using MapTalkie.Models;
 using MapTalkie.Models.Context;
 using MapTalkie.Services.EventBus;
 using MapTalkie.Services.PostService.Events;
 using MapTalkie.Utils.MapUtils;
-using MapTalkie.Utils.RTEFC;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 
 namespace MapTalkie.Services.PostService
 {
     public class PostService : DbService, IPostService
     {
-        private static readonly SemaphoreSlim RtefcSemaphore = new(0, 1);
-        private static readonly SemaphoreSlim PopularityCacheUpdateSemaphore = new(0, 1);
         private readonly IEventBus _eventBus;
         private readonly IMemoryCache _memoryCache;
+        private readonly IOptions<PostOptions> _postOptions;
 
-        public PostService(AppDbContext context, IEventBus eventBus, IMemoryCache memoryCache) : base(context)
+        public PostService(
+            AppDbContext context,
+            IEventBus eventBus,
+            IMemoryCache memoryCache,
+            IOptions<PostOptions> postOptions) : base(context)
         {
             _eventBus = eventBus;
             _memoryCache = memoryCache;
+            _postOptions = postOptions;
         }
 
         #region CRUD things
@@ -79,16 +83,6 @@ namespace MapTalkie.Services.PostService
             }
 
             return query;
-        }
-
-        public IQueryable<dynamic> QueryPostViews(
-            PostView view,
-            Geometry? geometry = null,
-            bool? available = true,
-            User? availableFor = null)
-        {
-            var query = QueryPosts(geometry, available, availableFor);
-            return MakePostViewQuery(query, view);
         }
 
         public IQueryable<dynamic> QueryPopularPostViews(PostView view, Geometry? geometry = null,
@@ -165,129 +159,6 @@ namespace MapTalkie.Services.PostService
 
         #endregion
 
-        #region Map layer state
-
-        public async Task<MapLayerState> GetLayerState(
-            Polygon polygon,
-            User? availableFor = null,
-            bool byPassCache = false)
-        {
-            var zone = MapUtils.GetZone(polygon);
-            List<Post> posts;
-
-            if (byPassCache)
-            {
-                posts = await QueryPopularPosts(geometry: MapUtils.GetZonePolygon(zone)).ToListAsync();
-            }
-            else
-            {
-                var key = PostServiceDefaults.PopularPostsCacheKeyPrefix + zone.ToIdentifier();
-                if (!_memoryCache.TryGetValue<CachedPopularityZoneEntry>(key, out var cached))
-                {
-                    await UpdatePopularityCache(zone);
-                    cached = _memoryCache.Get<CachedPopularityZoneEntry>(key);
-                }
-
-                var postIds = cached.Posts.Select(p => p.PostId).ToArray();
-                posts = await DbContext.Posts.Where(p => postIds.Contains(p.Id)).ToListAsync();
-            }
-
-            var clusters = await GetClustersForZone(zone);
-            return new MapLayerState
-            {
-                Popular = posts,
-                Clusters = clusters.Rtefc.Clusters.Select(c => new MapCluster
-                {
-                    Centroid = new Point(MapUtils.MercatorToLatLon(c.Centroid)) { SRID = 4326 },
-                    ClusterId = c.Id.ToString(),
-                    ClusterSize = c.Value
-                }).ToList()
-            };
-        }
-
-        private struct CachedRtefcEntry
-        {
-            public Rtefc Rtefc;
-            public SemaphoreSlim Semaphore;
-        }
-
-        private async Task<CachedRtefcEntry> GetClustersForZone(MapZoneDescriptor zone)
-        {
-            var cacheKey = PostServiceDefaults.PostClustersCacheKeyPrefix + zone.ToIdentifier();
-            if (!_memoryCache.TryGetValue<CachedRtefcEntry>(cacheKey, out var clusters))
-            {
-                var isNew = false;
-                await RtefcSemaphore.WaitAsync();
-                if (!_memoryCache.TryGetValue<CachedRtefcEntry>(cacheKey, out clusters))
-                {
-                    isNew = true;
-                    clusters = new CachedRtefcEntry
-                    {
-                        Rtefc = new Rtefc(
-                            TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(9),
-                            50, MapUtils.ZoneSize(zone.Level)),
-                        Semaphore = new(1, 1)
-                    };
-                }
-
-                RtefcSemaphore.Release();
-                if (isNew)
-                {
-                    // не оптимально
-                    // TODO оптимизировать это дело
-                    var posts = await QueryPosts(MapUtils.GetZonePolygon(zone))
-                        .Where(p => p.CreatedAt > DateTime.UtcNow - TimeSpan.FromDays(14))
-                        .OrderByDescending(p => p.CreatedAt)
-                        .Select(p => p.Location)
-                        .Take(30000)
-                        .ToListAsync();
-                    for (var i = 0; i < posts.Count; i++)
-                        clusters.Rtefc.Add(posts[i].Coordinate, 1);
-                    clusters.Semaphore.Release();
-                }
-            }
-
-            return clusters;
-        }
-
-        private async Task OnPostCreated(Post post)
-        {
-            var zones = MapUtils.GetZones(post.Location);
-            foreach (var zone in zones)
-            {
-                var maxRadius = MapUtils.ClusterMaxRadius(zone.Level);
-                var cluster = await (
-                    from c in DbContext.PostClusters
-                    let dist = c.Location.Distance(post.Location)
-                    orderby dist
-                    where dist <= maxRadius
-                    select c).FirstOrDefaultAsync();
-                if (cluster == null)
-                {
-                    cluster = new PostCluster
-                    {
-                        Level = zone.Level,
-                        Location = post.Location
-                    };
-                    DbContext.Add(cluster);
-                }
-                else
-                {
-                    var mercator = MapUtils.LatLonToMercator(post.Location);
-                }
-
-                // TODO add in batches
-                var clusters = await GetClustersForZone(zone);
-                await clusters.Semaphore.WaitAsync();
-                clusters.Rtefc.Add(post.Location.Coordinate, 1);
-                clusters.Semaphore.Release();
-            }
-
-            await DbContext.SaveChangesAsync();
-        }
-
-        #endregion
-
         #region Likes
 
         public async Task FavoritePost(Post post, string userId)
@@ -300,7 +171,7 @@ namespace MapTalkie.Services.PostService
             await OnPopularityChange(post);
         }
 
-        public async Task UnfavoritePost(Post post, string userId)
+        public async Task UnFavoritePost(Post post, string userId)
         {
             if (!await DbContext.PostLikes.Where(l => l.UserId == userId && l.PostId == post.Id).AnyAsync())
                 return;
@@ -311,42 +182,6 @@ namespace MapTalkie.Services.PostService
         #endregion
 
         #region Все связанное с популярностью
-
-        private struct PostWithPopularity
-        {
-            public Post Post { get; set; }
-            public PostPopularity Popularity { get; set; }
-        }
-
-        private IQueryable<PostWithPopularity> QueryPostsWithPopularity(
-            Geometry? geometry = null,
-            bool? available = true,
-            User? availableFor = null)
-        {
-            var query = from p in QueryPosts(geometry, available, availableFor)
-                let comments = p.Comments.Count
-                let likes = p.Likes.Count
-                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
-                let freshRank = comments + likes * 2
-                let rank = freshRank * timeDecay
-                orderby rank descending
-                select new PostWithPopularity
-                {
-                    Post = p,
-                    Popularity = new PostPopularity
-                    {
-                        PostId = p.Id,
-                        Reposts = 0,
-                        Comments = comments,
-                        TimeDecayFactor = timeDecay,
-                        Rank = rank,
-                        FreshRank = freshRank,
-                        Likes = likes
-                    }
-                };
-
-            return query;
-        }
 
         public IQueryable<Post> QueryPopularPosts(
             Geometry? geometry = null,
@@ -370,8 +205,30 @@ namespace MapTalkie.Services.PostService
             bool? available = true,
             User? availableFor = null)
         {
-            return QueryPostsWithPopularity(geometry, available, availableFor).Select(pp => pp.Popularity);
+            return from p in QueryPosts(geometry, available, availableFor)
+                let comments = p.Comments.Count
+                let likes = p.Likes.Count
+                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
+                let freshRank = comments + likes * 2
+                let rank = freshRank * timeDecay
+                orderby rank descending
+                select new PostPopularity
+                {
+                    FreshRank = freshRank,
+                    Rank = rank,
+                    Likes = likes,
+                    Comments = comments,
+                    PostId = p.Id,
+                    TimeDecayFactor = timeDecay,
+                    Reposts = 0
+                };
         }
+
+        public IDisposable SubscribeToEngagement(long postId, Func<PostEngagement, Task> callback)
+            => _eventBus.Subscribe(postId, callback);
+
+        public IDisposable SubscribeToEngagement(Polygon polygon, Func<PostEngagement, Task> callback)
+            => _eventBus.Subscribe(polygon, string.Empty, @event => @event.Location, callback);
 
         private async Task OnPopularityChange(Post post)
         {
@@ -382,92 +239,82 @@ namespace MapTalkie.Services.PostService
                 Location = post.Location,
             });
 
-            await AdjustPopularityCache(post, popularity);
+            await AdjustPopularityCache(post);
         }
 
-        private struct CachedPopularPost
+        private class PopularityCacheEntry
         {
+            public bool Exists { get; set; }
             public long PostId { get; set; }
-            public DateTime CreatedAt { get; set; }
             public double FreshRank { get; set; }
-
-            public double Rank => FreshRank * CalculateDecay(CreatedAt);
+            public DateTime CreatedAt { get; set; }
+            public SemaphoreSlim Semaphore { get; } = new(1, 1);
+            public double Rank => CalculateDecay(CreatedAt) * Rank;
         }
 
-        private class CachedPopularityZoneEntry
+        private static readonly SemaphoreSlim PopularityCacheSemaphore = new(1, 1);
+
+        private async Task AdjustPopularityCache(Post post)
         {
-            public List<CachedPopularPost> Posts { get; set; }
-            public SemaphoreSlim Semaphore { get; set; }
-        }
-
-        private async Task AdjustPopularityCache(Post post, PostPopularity popularity)
-        {
-            var zones = MapUtils.GetZones(post.Location);
-
-            var tasks = new List<Task>();
-
-            foreach (var zone in zones)
+            var popularity = await GetPopularity(post.Id);
+            foreach (var zoneDescriptor in MapUtils.GetZones(post.Location))
             {
-                if (!_memoryCache.TryGetValue<CachedPopularityZoneEntry>(
-                    PostServiceDefaults.PopularPostsCacheKeyPrefix + zone.ToIdentifier(), out var popular))
+                var key = PostServiceDefaults.PopularPostsInAreaKey[zoneDescriptor.ToIdentifier()];
+                if (!_memoryCache.TryGetValue<PopularityCacheEntry>(key, out var cacheEntry))
                 {
-                    tasks.Add(UpdatePopularityCache(zone));
-                }
-                else
-                {
-                    var index = popular.Posts.FindIndex(cached => cached.Rank < popularity.Rank);
-                    if (index != -1)
+                    await PopularityCacheSemaphore.WaitAsync();
+                    if (!_memoryCache.TryGetValue<PopularityCacheEntry>(key, out cacheEntry))
                     {
-                        async Task Add()
+                        // инициализировать запись кэша поместив в него N-ый популярный пост в указанной зоне
+                        var leastPopularFromTop = await
+                            QueryPopularPosts(MapUtils.GetZonePolygon(zoneDescriptor))
+                                .Skip(_postOptions.Value.PopularPostsCachedTopCount - 1)
+                                .FirstOrDefaultAsync();
+                        if (leastPopularFromTop == null)
                         {
-                            await popular.Semaphore.WaitAsync();
-
-                            popular.Posts.Insert(index, new CachedPopularPost
+                            cacheEntry = new PopularityCacheEntry { Exists = false };
+                        }
+                        else
+                        {
+                            cacheEntry = new PopularityCacheEntry
                             {
+                                Exists = true,
                                 PostId = post.Id,
                                 CreatedAt = post.CreatedAt,
                                 FreshRank = popularity.FreshRank
-                            });
-                            popular.Posts.RemoveAt(popular.Posts.Count - 1);
-                            popular.Semaphore.Release();
-
-                            await _eventBus.Trigger(
-                                PostServiceDefaults.PopularPostsUpdatedInAreaEventPrefix + zone.ToIdentifier(),
-                                new PopularPostsUpdated { ZoneDescriptor = zone });
+                            };
                         }
 
-                        tasks.Add(Add());
+                        _memoryCache.Set(key, cacheEntry);
+                    }
+                    else
+                    {
+                        // запись кэша обновилась пока мы ждали семафор
+                        if (cacheEntry.PostId != post.Id && cacheEntry.Rank < popularity.Rank)
+                        {
+                            cacheEntry.PostId = post.Id;
+                            cacheEntry.FreshRank = popularity.FreshRank;
+                            cacheEntry.CreatedAt = post.CreatedAt;
+                        }
+                    }
+
+                    PopularityCacheSemaphore.Release();
+                }
+                else
+                {
+                    if (cacheEntry.PostId != post.Id && cacheEntry.Rank < popularity.Rank)
+                    {
+                        await cacheEntry.Semaphore.WaitAsync();
+                        if (cacheEntry.PostId != post.Id && cacheEntry.Rank < popularity.Rank)
+                        {
+                            cacheEntry.PostId = post.Id;
+                            cacheEntry.FreshRank = popularity.FreshRank;
+                            cacheEntry.CreatedAt = post.CreatedAt;
+                        }
+
+                        cacheEntry.Semaphore.Release();
                     }
                 }
-
-                await Task.WhenAll(tasks);
-            }
-        }
-
-        private async Task UpdatePopularityCache(MapZoneDescriptor zone)
-        {
-            await PopularityCacheUpdateSemaphore.WaitAsync();
-
-            try
-            {
-                var key = PostServiceDefaults.PopularPostsCacheKeyPrefix + zone.ToIdentifier();
-                if (!_memoryCache.TryGetValue(key, out var _))
-                {
-                    var popularPosts = await QueryPopularPostsImpl(100, MapUtils.GetZonePolygon(zone))
-                        .Select(pair => new CachedPopularPost
-                        {
-                            PostId = pair.Post.Id,
-                            CreatedAt = pair.Post.CreatedAt,
-                            FreshRank = pair.Popularity.FreshRank
-                        })
-                        .ToListAsync();
-                    _memoryCache.Set(key,
-                        new CachedPopularityZoneEntry { Posts = popularPosts, Semaphore = new(0, 1) });
-                }
-            }
-            finally
-            {
-                PopularityCacheUpdateSemaphore.Release();
             }
         }
 

@@ -51,15 +51,6 @@ namespace MapTalkie.Hubs
             return Task.CompletedTask;
         }
 
-        #region Events
-
-        private async Task OnEngagement(PostEngagement engagement)
-        {
-            await Clients.Caller.SendAsync("Engagement", engagement.Popularity);
-        }
-
-        #endregion
-
         #region Messages
 
         private IDisposable? _messagesSubscription;
@@ -220,25 +211,26 @@ namespace MapTalkie.Hubs
 
         public async Task TrackPosts(long[] postIds)
         {
-            // TODO check for _engagementPolygon
-            // TODO check for total count of posts tracked
             foreach (var postId in postIds)
             {
                 SubscribeToEngagement(postId);
             }
 
-            var postPops = await _postService.QueryPopularity(availableFor: await GetUser())
+            var postPops = await _postService
+                .QueryPopularity(availableFor: await GetUser())
                 .Where(p => postIds.Contains(p.PostId))
                 .ToListAsync();
             await Clients.Caller.SendAsync("Engagements", postPops);
         }
 
-        public async Task StopTrackingPosts(long[] postIds)
+        public Task StopTrackingPosts(long[] postIds)
         {
             foreach (var id in postIds)
             {
                 UnsubscribeFromEngagement(id);
             }
+
+            return Task.CompletedTask;
         }
 
         private void SubscribeToEngagement(long postId)
@@ -251,38 +243,21 @@ namespace MapTalkie.Hubs
                     "Can't subscribe to engagement update - _subscriptionOptions is not set");
             }
 
-            _engagementDisposables[postId] = _eventBus.Subscribe<PostEngagement>(_subscriptionOptions.ViewPort,
-                string.Empty, @event => @event.Location, OnEngagement);
+            _engagementDisposables[postId] = _postService.SubscribeToEngagement(postId, OnEngagement);
         }
 
-        private bool UnsubscribeFromEngagement(long postId)
+        private void UnsubscribeFromEngagement(long postId)
         {
             if (_engagementDisposables.ContainsKey(postId))
             {
                 _engagementDisposables[postId].Dispose();
                 _engagementDisposables.Remove(postId);
-                return true;
             }
-
-            return false;
         }
 
-        private void SubscribeToEngagement(long[] postIds)
+        private async Task OnEngagement(PostEngagement engagement)
         {
-            var removedKeys = _engagementDisposables.Keys.Where(key => !postIds.Contains(key));
-
-            foreach (var key in removedKeys)
-            {
-                UnsubscribeFromEngagement(key);
-            }
-
-            foreach (var postId in postIds)
-            {
-                if (!_engagementDisposables.ContainsKey(postId))
-                {
-                    SubscribeToEngagement(postId);
-                }
-            }
+            await Clients.Caller.SendAsync("Engagement", engagement.Popularity);
         }
 
         #endregion
