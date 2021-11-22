@@ -1,7 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using MapTalkie.Models;
 using MapTalkie.Services.PostService;
+using MapTalkieDB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NetTopologySuite.Geometries;
@@ -24,7 +25,6 @@ namespace MaptalkieTests
             var post = await CreateSamplePost();
 
             Assert.True(post.Available);
-            Assert.NotEqual(0, post.Id);
             Assert.Equal(UserIds[0], post.UserId);
         }
 
@@ -40,12 +40,12 @@ namespace MaptalkieTests
                 new LinearRing(
                     new[]
                     {
-                        new Coordinate(80, 58),
-                        new Coordinate(80, 50),
-                        new Coordinate(84, 50),
-                        new Coordinate(84, 58),
-                        new Coordinate(80, 58),
-                    }));
+                        new Coordinate(8905559.263461877, 7967317.535015895),
+                        new Coordinate(7967317.535015895, 6446275.841017148),
+                        new Coordinate(9350837.22663497, 6446275.841017148),
+                        new Coordinate(9350837.22663497, 7967317.535015895),
+                        new Coordinate(8905559.263461877, 7967317.535015895)
+                    })) { SRID = 3857 };
             var inArea = PostService.QueryPosts(poly);
             Assert.Equal(10, await inArea.CountAsync());
         }
@@ -55,7 +55,7 @@ namespace MaptalkieTests
             return await PostService.CreateTextPost(
                 $"This is test {Guid.NewGuid()}",
                 UserIds[0],
-                new Point(82.933952, 55.018803),
+                new Point(82.933952, 55.018803) { SRID = 4326 },
                 true);
         }
 
@@ -63,6 +63,7 @@ namespace MaptalkieTests
         public async Task TestPopularPostsTimeDecay()
         {
             var random = new Random();
+            var newestPosts = new List<string>();
             {
                 var old = DateTime.UtcNow - TimeSpan.FromDays(3);
 
@@ -85,6 +86,8 @@ namespace MaptalkieTests
                         CreatedAt = postTime,
                         Comments = comments
                     };
+                    if (i >= 10)
+                        newestPosts.Add(post.Id);
 
                     Context.Add(post);
                 }
@@ -92,13 +95,14 @@ namespace MaptalkieTests
                 await Context.SaveChangesAsync();
             }
 
-            var popularPosts = PostService.QueryPopularPosts(5);
-            Assert.DoesNotContain(popularPosts, p => p.Id < 10);
+            var popularPosts = await PostService.QueryPopularPosts().ToListAsync();
+            Assert.DoesNotContain(popularPosts, p => !newestPosts.Contains(p.Id));
         }
 
         [Fact]
         public async Task TestPopularPostsLikePriority()
         {
+            var popularIds = new List<string>();
             {
                 for (var i = 0; i < 20; i++)
                 {
@@ -123,7 +127,7 @@ namespace MaptalkieTests
                         for (var j = 0; j < 10; j++)
                             comments[j] = new PostComment
                             {
-                                SenderId = UserIds[1],
+                                SenderId = UserIds[1]
                             };
                         likes = Array.Empty<PostLike>();
                     }
@@ -140,14 +144,14 @@ namespace MaptalkieTests
                         comments = Array.Empty<PostComment>();
                     }
 
-                    Context.AddRange(likes);
-                    Context.AddRange(comments);
+                    await Context.AddRangeAsync(likes);
+                    await Context.AddRangeAsync(comments);
                 }
 
                 await Context.SaveChangesAsync();
             }
 
-            var popularPosts = PostService.QueryPopularPosts(5);
+            var popularPosts = await PostService.QueryPopularPosts().ToListAsync();
             Assert.DoesNotContain(popularPosts, p => p.Id < 10);
         }
     }

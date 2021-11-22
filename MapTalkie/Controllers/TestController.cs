@@ -5,7 +5,7 @@ using Quartz;
 
 namespace MapTalkie.Controllers
 {
-    class TestJob : IJob
+    internal class TestJob : IJob
     {
         private readonly ILogger<TestJob> _logger;
 

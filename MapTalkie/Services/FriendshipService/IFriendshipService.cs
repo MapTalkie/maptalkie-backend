@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
+using MapTalkieDB;
 
 namespace MapTalkie.Services.FriendshipService
 {

@@ -1,4 +1,4 @@
-using MapTalkie.Models.Context;
+using MapTalkieDB.Context;
 
 namespace MapTalkie.Services
 {

@@ -3,13 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Services.EventBus;
-using MapTalkie.Services.MessageService;
-using MapTalkie.Services.MessageService.Events;
 using MapTalkie.Services.PostService;
-using MapTalkie.Services.PostService.Events;
-using MapTalkie.Utils.MapUtils;
+using MapTalkieCommon.Utils;
+using MapTalkieDB;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -27,79 +23,50 @@ namespace MapTalkie.Hubs
             Popular
         }
 
-        private readonly IEventBus _eventBus;
         private readonly IPostService _postService;
 
         public MainUserHub(
             IPostService postService,
-            IEventBus eventBus,
             UserManager<User> userManager) : base(userManager)
         {
-            _eventBus = eventBus;
             _postService = postService;
-        }
-
-        public override Task OnConnectedAsync()
-        {
-            InitMessages();
-            return Task.CompletedTask;
-        }
-
-        public override Task OnDisconnectedAsync(Exception? exception)
-        {
-            DisposeMessages();
-            return Task.CompletedTask;
         }
 
         #region Messages
 
-        private IDisposable? _messagesSubscription;
-        private IDisposable? _conversationSubscription;
         private int? _activeConversationId;
 
-        public async Task SetActiveConversation(int conversationId)
+        public Task SetActiveConversation(int conversationId)
+            => SetActiveConversationImpl(conversationId);
+
+        public Task RemoveActiveConversation()
+            => SetActiveConversationImpl(null);
+
+        private async Task SetActiveConversationImpl(int? conversationId)
         {
+            if (conversationId == _activeConversationId)
+                return;
+
+            if (_activeConversationId != null)
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId,
+                    MapTalkieGroups.ConversationPrefix + _activeConversationId);
+            }
+
             _activeConversationId = conversationId;
-            _conversationSubscription = _eventBus.Subscribe<ConversationUpdate>(
-                conversationId.ToString(), OnConversationUpdate);
-        }
-
-        private async Task OnConversationUpdate(ConversationUpdate @event)
-        {
-            await Clients.Caller.SendAsync("PM", @event);
-        }
-
-
-        public async Task RemoveActiveConversation()
-        {
-            _activeConversationId = null;
-            _conversationSubscription?.Dispose();
-        }
-
-        private void InitMessages()
-        {
-            _messagesSubscription = _eventBus.Subscribe<MessageEvent>(
-                MessageServiceDefaults.MessageEventPrefix + UserId,
-                OnMessageEvent);
-        }
-
-        private void DisposeMessages()
-        {
-            _messagesSubscription?.Dispose();
-            _conversationSubscription?.Dispose();
-        }
-
-        private async Task OnMessageEvent(MessageEvent @event)
-        {
-            await Clients.Caller.SendAsync("Message", @event);
+            if (_activeConversationId != null)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId,
+                    MapTalkieGroups.ConversationPrefix + _activeConversationId);
+            }
         }
 
         #endregion
 
         #region Map
 
-        private SubscriptionOptions? _subscriptionOptions;
-        private IDisposable? _postUpdateSubscription;
+        private SubscriptionType _subscriptionType = SubscriptionType.Popular;
+        private Polygon? _subscriptionPolygon;
 
         public class SubscriptionOptions
         {
@@ -107,86 +74,43 @@ namespace MapTalkie.Hubs
             [Required] public SubscriptionType SubscriptionType { get; set; }
         }
 
-        public async Task ConfigureSubscription(SubscriptionOptions options)
+        public async Task ConfigureSubscription(Polygon polygon, SubscriptionType subscriptionType)
         {
-            var old = _subscriptionOptions;
-            _subscriptionOptions = options;
+            var oldPoly = _subscriptionPolygon;
+            var oldType = _subscriptionType;
+            _subscriptionPolygon = polygon;
+            _subscriptionType = subscriptionType;
 
-            if (old == null ||
-                !MapUtils.IsSameArea(old.ViewPort, options.ViewPort) ||
-                old.SubscriptionType != options.SubscriptionType)
+            if (oldPoly == null ||
+                !ZoneId.IsSameArea(oldPoly, polygon) ||
+                subscriptionType != oldType)
             {
+                if (oldPoly != null)
+                {
+                    await Groups.RemoveFromGroupAsync(
+                        Context.ConnectionId,
+                        MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + ZoneId.FromPolygon(oldPoly).Id);
+                }
+
+                await Groups.AddToGroupAsync(
+                    Context.ConnectionId,
+                    MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + ZoneId.FromPolygon(polygon));
+
                 await SendPostsInCurrentArea();
-                await UpdateSubscriptions();
             }
-        }
-
-        private async Task UpdateSubscriptions()
-        {
-            if (_subscriptionOptions == null)
-            {
-                throw new InvalidOperationException("Can't update subscriptions since _subscriptionOptions is not set");
-            }
-
-            _postUpdateSubscription?.Dispose();
-
-            switch (_subscriptionOptions.SubscriptionType)
-            {
-                case SubscriptionType.Latest:
-                    _postUpdateSubscription = SubscribeToLatestPosts();
-                    break;
-                case SubscriptionType.Popular:
-                    _postUpdateSubscription = SubscribeToPopularPosts();
-                    break;
-                default:
-                    throw new InvalidOperationException("Invalid subscription type");
-            }
-        }
-
-        private IDisposable SubscribeToPopularPosts()
-        {
-            if (_subscriptionOptions == null)
-                throw new InvalidOperationException("Can't subscribe to area event: subscription options is not set");
-            return _eventBus.Subscribe<PopularPostEvent>(
-                _subscriptionOptions.ViewPort, string.Empty, @event => @event.Location, OnPopularPost);
-        }
-
-        private async Task OnPopularPost(PopularPostEvent @event)
-        {
-            await Clients.Caller.SendAsync("PopularPost", @event);
-        }
-
-
-        private IDisposable SubscribeToLatestPosts()
-        {
-            if (_subscriptionOptions == null)
-                throw new InvalidOperationException("Can't subscribe to area event: subscription options is not set");
-            return _eventBus.Subscribe<NewPostEvent>(
-                _subscriptionOptions.ViewPort, string.Empty, @event => @event.Location, OnNewPost);
-        }
-
-        private async Task OnNewPost(NewPostEvent @event)
-        {
-            await Clients.Caller.SendAsync("NewPost", @event);
         }
 
         private async Task SendPostsInCurrentArea()
         {
-            if (_subscriptionOptions == null)
-            {
-                throw new InvalidOperationException(
-                    "Can't send posts in current area since _subscriptionOptions is not set");
-            }
-
             IQueryable<Post> queryable;
-            switch (_subscriptionOptions.SubscriptionType)
+            switch (_subscriptionType)
             {
                 case SubscriptionType.Latest:
-                    queryable = _postService.QueryPosts(_subscriptionOptions.ViewPort)
+                    queryable = _postService.QueryPosts(_subscriptionPolygon)
                         .OrderByDescending(p => p.CreatedAt);
                     break;
                 case SubscriptionType.Popular:
-                    queryable = _postService.QueryPopularPosts(_subscriptionOptions.ViewPort);
+                    queryable = _postService.QueryPopularPosts(_subscriptionPolygon);
                     break;
                 default:
                     throw new NotImplementedException();
@@ -195,26 +119,35 @@ namespace MapTalkie.Hubs
             var views = await queryable.Select(p => new
             {
                 p.Id, p.Location, p.CreatedAt,
-                p.UserId, UserName = p.User.UserName,
+                p.UserId,
+                p.User.UserName,
                 Likes = p.Likes.Count,
-                Reposts = 0,
+                Shares = 0,
                 Comments = p.Comments.Count
             }).Take(100).ToListAsync();
-            await Clients.Caller.SendAsync("OnPosts", views, _subscriptionOptions.SubscriptionType);
+            await Clients.Caller.SendAsync("Posts", views, _subscriptionType);
         }
 
         #endregion
 
         #region Engagement
 
-        private readonly Dictionary<long, IDisposable> _engagementDisposables = new();
+        private HashSet<string> _trackingPosts = new();
 
-        public async Task TrackPosts(long[] postIds)
+        public async Task TrackPosts(string[] postIds)
         {
-            foreach (var postId in postIds)
+            var set = new HashSet<string>(postIds);
+            foreach (var postId in _trackingPosts.Where(postId => !set.Contains(postId)))
             {
-                SubscribeToEngagement(postId);
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
             }
+
+            foreach (var postId in set.Where(postId => !_trackingPosts.Contains(postId)))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
+            }
+
+            _trackingPosts = set;
 
             var postPops = await _postService
                 .QueryPopularity(availableFor: await GetUser())
@@ -223,41 +156,12 @@ namespace MapTalkie.Hubs
             await Clients.Caller.SendAsync("Engagements", postPops);
         }
 
-        public Task StopTrackingPosts(long[] postIds)
+        public async Task StopTrackingPosts()
         {
-            foreach (var id in postIds)
+            foreach (var postId in _trackingPosts)
             {
-                UnsubscribeFromEngagement(id);
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
             }
-
-            return Task.CompletedTask;
-        }
-
-        private void SubscribeToEngagement(long postId)
-        {
-            if (_engagementDisposables.ContainsKey(postId))
-                return;
-            if (_subscriptionOptions == null)
-            {
-                throw new InvalidOperationException(
-                    "Can't subscribe to engagement update - _subscriptionOptions is not set");
-            }
-
-            _engagementDisposables[postId] = _postService.SubscribeToEngagement(postId, OnEngagement);
-        }
-
-        private void UnsubscribeFromEngagement(long postId)
-        {
-            if (_engagementDisposables.ContainsKey(postId))
-            {
-                _engagementDisposables[postId].Dispose();
-                _engagementDisposables.Remove(postId);
-            }
-        }
-
-        private async Task OnEngagement(PostEngagement engagement)
-        {
-            await Clients.Caller.SendAsync("Engagement", engagement.Popularity);
         }
 
         #endregion

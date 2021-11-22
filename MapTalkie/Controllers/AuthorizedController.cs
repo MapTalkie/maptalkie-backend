@@ -1,22 +1,24 @@
+using System.Data.Entity;
+using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using MapTalkie.Models;
 using MapTalkie.Utils.ErrorHandling;
-using Microsoft.AspNetCore.Identity;
+using MapTalkieDB;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MapTalkie.Controllers
 {
     public class AuthorizedController : Controller
     {
-        protected readonly UserManager<User> UserManager;
+        protected readonly AppDbContext _dbContext;
         private User? _user;
-        private bool _userInitialized = false;
+        private bool _userInitialized;
 
-        public AuthorizedController(UserManager<User> userManager)
+        public AuthorizedController(AppDbContext dbContext)
         {
-            UserManager = userManager;
+            _dbContext = dbContext;
         }
 
         public string? UserId => HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -50,7 +52,7 @@ namespace MapTalkie.Controllers
             var id = UserId;
             if (id == null)
                 return Task.FromResult<User?>(null);
-            return UserManager.FindByIdAsync(id)!;
+            return _dbContext.Users.Where(u => u.Id == id).FirstOrDefaultAsync()!;
         }
     }
 }

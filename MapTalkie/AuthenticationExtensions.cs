@@ -3,6 +3,7 @@ using MapTalkie.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
 
 namespace MapTalkie
@@ -43,7 +44,7 @@ namespace MapTalkie
         {
             options.IncludeErrorDetails = true;
             options.ClaimsIssuer = jwtSettings.Issuer;
-            options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+            options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
                 ValidIssuer = jwtSettings.Issuer,
@@ -54,7 +55,7 @@ namespace MapTalkie
                 ValidateAudience = jwtSettings.ValidateAudience,
 
                 IssuerSigningKey = jwtSettings.GetSecurityKey(),
-                ValidateIssuerSigningKey = true,
+                ValidateIssuerSigningKey = true
             };
         }
 

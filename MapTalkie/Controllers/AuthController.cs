@@ -2,8 +2,11 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using MapTalkie.Configuration;
-using MapTalkie.Models;
+using MapTalkie.MessagesImpl;
 using MapTalkie.Services.TokenService;
+using MapTalkieCommon.Messages;
+using MapTalkieDB;
+using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -50,7 +53,6 @@ namespace MapTalkie.Controllers
             {
                 var token = tokenService.CreateToken(user);
                 if (hybrid)
-                {
                     Response.Cookies.Append(
                         authenticationSettings.HybridCookieName,
                         token.Signature,
@@ -61,7 +63,6 @@ namespace MapTalkie.Controllers
                             Secure = true, // TODO remove this comment
                             Expires = DateTimeOffset.Now.AddDays(10)
                         });
-                }
 
                 return new LoginResponse
                 {
@@ -75,13 +76,22 @@ namespace MapTalkie.Controllers
         [HttpPost("signup")]
         public async Task<ActionResult<SignUpResponse>> SignUp(
             [FromBody] SignUpRequest request,
-            [FromServices] UserManager<User> manager)
+            [FromServices] UserManager<User> manager,
+            [FromServices] IPublishEndpoint publishEndpoint)
         {
             var user = new User
             {
                 UserName = request.UserName,
-                Email = request.Email
+                Email = request.Email,
+                EmailConfirmed = false
             };
+            await publishEndpoint.Publish<IEmailVerification>(new EmailVerification
+            {
+                UserId = user.Id,
+                Email = request.Email,
+                UserName = request.UserName,
+                VerificationType = VerificationType.AccountCreated
+            });
             var result = await manager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
@@ -102,14 +112,12 @@ namespace MapTalkie.Controllers
 
         public class SignUpRequest
         {
-            [EmailAddress] public string? Email { get; set; }
+            [Required, EmailAddress] public string Email { get; set; } = default!;
 
-            [Required]
-            [MinLength(1)]
-            [MaxLength(100)]
+            [Required, MinLength(1), MaxLength(100)]
             public string UserName { get; set; } = string.Empty;
 
-            [MinLength(8)] public string Password { get; set; } = string.Empty;
+            [Required, MinLength(8)] public string Password { get; set; } = default!;
         }
 
         public class SignUpResponse

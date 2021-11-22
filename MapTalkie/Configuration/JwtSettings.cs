@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
 namespace MapTalkie.Configuration
@@ -19,7 +20,7 @@ namespace MapTalkie.Configuration
 
         internal SecurityKey GetSecurityKey()
         {
-            return new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(SecretKey));
+            return new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
         }
     }
 }

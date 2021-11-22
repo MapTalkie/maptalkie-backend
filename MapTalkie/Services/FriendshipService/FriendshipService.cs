@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
+using MapTalkieDB;
+using MapTalkieDB.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Services.FriendshipService
@@ -41,8 +41,8 @@ namespace MapTalkie.Services.FriendshipService
         {
             var count = await DbContext.FriendRequests
                 .Where(fr =>
-                    (fr.FromId == user1Id && fr.ToId == user2Id) ||
-                    (fr.FromId == user2Id && fr.ToId == user1Id))
+                    fr.FromId == user1Id && fr.ToId == user2Id ||
+                    fr.FromId == user2Id && fr.ToId == user1Id)
                 .CountAsync();
             return count == 2;
         }

@@ -1,8 +1,7 @@
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
+using MapTalkieDB;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MapTalkie.Controllers
@@ -14,7 +13,7 @@ namespace MapTalkie.Controllers
     {
         private readonly AppDbContext _context;
 
-        public ProfileController(UserManager<User> userManager, AppDbContext context) : base(userManager)
+        public ProfileController(AppDbContext context) : base(context)
         {
             _context = context;
         }
@@ -48,9 +47,9 @@ namespace MapTalkie.Controllers
                 return Unauthorized();
 
             if (body.NonFriendMessages != null)
-                user.Settings.Privacy.NonFriendMessages = (bool)body.NonFriendMessages;
+                user.AllowsNonFriendMessages = (bool)body.NonFriendMessages;
             if (body.PrivateLocation != null)
-                user.Settings.Privacy.PrivateLocation = (bool)body.PrivateLocation;
+                user.UsesPrivateLocation = (bool)body.PrivateLocation;
             await _context.SaveChangesAsync();
             return user;
         }

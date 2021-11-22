@@ -1,7 +1,8 @@
 using MapTalkie.Configuration;
 using MapTalkie.Hubs;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
+using MapTalkieDB;
+using MapTalkieDB.Context;
+using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -25,12 +26,31 @@ namespace MapTalkie
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddAppControllers();
+            services.AddMassTransit(options =>
+            {
+                options.UsingRabbitMq((context, cfg) =>
+                {
+                    var config = Configuration.GetSection("RabbitMQ")?.Get<RabbitMQConfiguration>();
+                    if (config != null)
+                    {
+                        cfg.Host(config.Host, h =>
+                        {
+                            if (config.Username != null)
+                                h.Username(config.Username);
 
+                            if (config.Password != null)
+                                h.Username(config.Password);
+                        });
+                    }
+                });
+            });
+            services.AddMassTransitHostedService();
+
+            services.AddAppControllers();
             services.ConfigureAll(Configuration);
             services.AddAppServices();
             services.AddAppCors(Env);
-            services.AddAppDbContext(Env, Configuration);
+            services.AddAppDbContext(Configuration);
             services.AddAppSignalR();
             services.AddAppQuartz();
             services.AddMemoryCache();
@@ -49,17 +69,15 @@ namespace MapTalkie
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
-            {
                 app.UseDeveloperExceptionPage();
-            }
             else
-            {
                 app.UseHsts();
-            }
 
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseHealthChecks("/health");
 
             // на будущее: UseCors должно стоять до UseAuthorization, чтобы ASP.NET не пытался 
             // авторизовать OPTIONS запросы

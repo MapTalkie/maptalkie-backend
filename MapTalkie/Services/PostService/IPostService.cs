@@ -1,8 +1,6 @@
-using System;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Services.PostService.Events;
+using MapTalkieDB;
 using NetTopologySuite.Geometries;
 
 namespace MapTalkie.Services.PostService
@@ -15,7 +13,7 @@ namespace MapTalkie.Services.PostService
             Point location,
             bool isOriginalLocation);
 
-        Task<Post?> GetPostOrNull(long id, bool includeUnavailable = false);
+        Task<Post?> GetPostOrNull(string id, bool includeUnavailable = false);
 
         IQueryable<Post> QueryPosts(
             Geometry? geometry = null,
@@ -32,16 +30,26 @@ namespace MapTalkie.Services.PostService
             bool? available = true,
             User? availableFor = null);
 
-        Task<bool> IsAvailable(long id);
+        IQueryable<Post> QueryByComments(
+            Geometry? geometry = null,
+            User? availableFor = null);
 
-        Task<PostPopularity> GetPopularity(long postId);
+        IQueryable<Post> QueryByLikes(
+            Geometry? geometry = null,
+            User? availableFor = null);
+
+        IQueryable<Post> QueryByShares(
+            Geometry? geometry = null,
+            User? availableFor = null);
+
+        Task<bool> IsAvailable(string id);
+
+        Task<PostPopularity> GetPopularity(string id);
 
         Task FavoritePost(Post post, string userId);
 
         Task UnFavoritePost(Post post, string userId);
 
-        IDisposable SubscribeToEngagement(long postId, Func<PostEngagement, Task> callback);
-
-        IDisposable SubscribeToEngagement(Polygon polygon, Func<PostEngagement, Task> callback);
+        Task DeletePost(Post post);
     }
 }

@@ -1,19 +1,25 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
+using MapTalkie.MessagesImpl;
+using MapTalkieCommon.Messages;
+using MapTalkieDB;
+using MapTalkieDB.Context;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Services.CommentService
 {
     public class CommentService : DbService, ICommentService
     {
-        public CommentService(AppDbContext context) : base(context)
+        private readonly IPublishEndpoint _publishEndpoint;
+
+        public CommentService(AppDbContext context, IPublishEndpoint publishEndpoint) : base(context)
         {
+            _publishEndpoint = publishEndpoint;
         }
 
-        public async Task<PostComment> CreateComment(long postId, string senderId, string text)
+        public async Task<PostComment> CreateComment(string postId, string senderId, string text)
         {
             var comment = new PostComment
             {
@@ -23,6 +29,12 @@ namespace MapTalkie.Services.CommentService
             };
             DbContext.Add(comment);
             await DbContext.SaveChangesAsync();
+            await _publishEndpoint.Publish<IPostEngagement>(new PostEngagementEvent
+            {
+                PostId = postId,
+                UserId = senderId,
+                Type = PostEngagementType.Comment
+            });
             return comment;
         }
 
@@ -39,6 +51,12 @@ namespace MapTalkie.Services.CommentService
                 };
                 DbContext.Add(reply);
                 await DbContext.SaveChangesAsync();
+                await _publishEndpoint.Publish<IPostEngagement>(new PostEngagementEvent
+                {
+                    PostId = comment.PostId,
+                    UserId = senderId,
+                    Type = PostEngagementType.Comment
+                });
             }
 
             throw new CommentNotFoundException(commentId);
@@ -56,6 +74,20 @@ namespace MapTalkie.Services.CommentService
             }
 
             throw new CommentNotFoundException(commentId);
+        }
+
+        public async Task RemoveComment(PostComment comment)
+        {
+            if (!comment.Available)
+                return;
+            comment.Available = false;
+            await DbContext.SaveChangesAsync();
+            await _publishEndpoint.Publish<IPostEngagement>(new PostEngagementEvent
+            {
+                Type = PostEngagementType.CommentRemoved,
+                UserId = comment.SenderId,
+                PostId = comment.PostId
+            });
         }
 
         public Task<PostComment?> GetCommentOrNull(long commentId)
@@ -95,7 +127,7 @@ namespace MapTalkie.Services.CommentService
             }
         }
 
-        public IQueryable<PostComment> QueryComments(long postId)
+        public IQueryable<PostComment> QueryComments(string postId)
         {
             return DbContext.PostComments
                 .Where(c => c.PostId == postId)
@@ -103,7 +135,7 @@ namespace MapTalkie.Services.CommentService
         }
 
         public IQueryable<PostCommentView> QueryCommentViews(
-            long postId,
+            string postId,
             DateTime? before = null,
             int? limit = null)
         {

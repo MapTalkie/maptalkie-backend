@@ -1,16 +1,15 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
+using MapTalkieDB;
 
 namespace MapTalkie.Services.CommentService
 {
     public interface ICommentService
     {
-        Task<PostComment> CreateComment(long postId, string senderId, string text);
+        Task<PostComment> CreateComment(string postId, string senderId, string text);
 
         /// <summary>
-        /// 
         /// </summary>
         /// <param name="commentId"></param>
         /// <param name="senderId"></param>
@@ -21,16 +20,18 @@ namespace MapTalkie.Services.CommentService
 
         Task<PostComment> UpdateComment(long commentId, Action<PostComment> updateFunction);
 
+        Task RemoveComment(PostComment comment);
+
         Task<PostComment?> GetCommentOrNull(long commentId);
 
         Task<CommentLike> Like(long commentId, string userId);
 
         Task RemoveLike(long commentId, string userId);
 
-        IQueryable<PostComment> QueryComments(long postId);
+        IQueryable<PostComment> QueryComments(string postId);
 
         IQueryable<PostCommentView> QueryCommentViews(
-            long postId,
+            string postId,
             DateTime? before = null,
             int? limit = null);
     }

@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
 using MapTalkie.Configuration;
-using MapTalkie.Models.Context;
 using MapTalkie.Services.CommentService;
-using MapTalkie.Services.EventBus;
 using MapTalkie.Services.FriendshipService;
 using MapTalkie.Services.MessageService;
 using MapTalkie.Services.PostService;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
 using MapTalkie.Utils.JsonConverters;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,8 +30,6 @@ namespace MapTalkie
                 .AddScoped<ITokenService, TokenService>()
                 .AddScoped<IMessageService, MessageService>()
                 .AddScoped<IPostService, PostService>();
-
-            services.AddSingleton<IEventBus, LocalEventBus>();
         }
 
         public static void ConfigureAll(this IServiceCollection services, IConfiguration configuration)
@@ -49,19 +46,15 @@ namespace MapTalkie
                 options.AddDefaultPolicy(builder =>
                 {
                     if (env.IsDevelopment())
-                    {
                         builder.WithOrigins(
                             "http://localhost:3000", "https://localhost:3000",
                             "http://localhost:5500", "https://localhost:5500",
                             "http://127.0.0.1:3000", "https://127.0.0.1:3000",
                             "http://127.0.0.1:5500", "https://127.0.0.1:5500"
                         );
-                    }
                     else
-                    {
                         // TODO
                         throw new NotImplementedException();
-                    }
 
                     builder.AllowCredentials();
                     builder.AllowAnyMethod();
@@ -76,16 +69,12 @@ namespace MapTalkie
             });
         }
 
-        public static void AddAppDbContext(this IServiceCollection services, IWebHostEnvironment env,
-            IConfiguration configuration)
+        public static void AddAppDbContext(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<AppDbContext>(options =>
             {
-                var connectionString = configuration.GetConnectionString("Default");
-                if (env.IsDevelopment())
-                    options.UseSqlite(connectionString, builder => builder.UseNetTopologySuite());
-                else
-                    options.UseNpgsql(connectionString, builder => builder.UseNetTopologySuite());
+                string connectionString = configuration.GetConnectionString("Postgres");
+                options.UseNpgsql(connectionString, builder => builder.UseNetTopologySuite());
             });
         }
 

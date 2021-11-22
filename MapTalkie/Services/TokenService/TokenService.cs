@@ -2,7 +2,7 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using MapTalkie.Configuration;
-using MapTalkie.Models;
+using MapTalkieDB;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -10,8 +10,8 @@ namespace MapTalkie.Services.TokenService
 {
     public class TokenService : ITokenService
     {
-        private JwtSettings _jwtSettings;
-        private JwtSecurityTokenHandler _tokenHandler = new();
+        private readonly JwtSettings _jwtSettings;
+        private readonly JwtSecurityTokenHandler _tokenHandler = new();
 
         public TokenService(IOptions<JwtSettings> jwtSettings)
         {

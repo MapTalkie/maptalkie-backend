@@ -2,11 +2,12 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
 using MapTalkie.Services.CommentService;
 using MapTalkie.Services.PostService;
 using MapTalkie.Utils;
+using MapTalkieCommon.Utils;
+using MapTalkieDB;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -24,18 +25,18 @@ namespace MapTalkie.Controllers
         private readonly IPostService _postService;
 
         public PostsController(
-            AppDbContext context,
+            AppDbContext dbContext,
             IPostService postService,
-            UserManager<User> userManager) : base(userManager)
+            UserManager<User> userManager) : base(dbContext)
         {
             _postService = postService;
-            _context = context;
+            _context = dbContext;
         }
 
         #region Delete post
 
-        [HttpDelete("{id:long}")]
-        public async Task<IActionResult> DeletePost([FromRoute] long id)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePost([FromRoute] string id)
         {
             var post = await _postService.GetPostOrNull(id);
             if (post == null)
@@ -51,8 +52,8 @@ namespace MapTalkie.Controllers
 
         #region Получить пост(ы)
 
-        [HttpGet("{id:long}")]
-        public async Task<ActionResult<Post>> GetPost([FromRoute] long id)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Post>> GetPost([FromRoute] string id)
         {
             var post = await _postService.GetPostOrNull(id);
             if (post != null)
@@ -95,8 +96,9 @@ namespace MapTalkie.Controllers
         {
             return new
             {
-                p.Id, p.CreatedAt, p.Text, p.User.UserName, p.UserId, p.Location, p.IsOriginalLocation,
-                Likes = p.Likes.Count, Reposts = 0, Comments = p.Comments.Count
+                p.Id, p.CreatedAt, p.Text, p.User.UserName, p.UserId, p.IsOriginalLocation,
+                Likes = p.Likes.Count, Shares = 0, Comments = p.Comments.Count,
+                Location = MapConvert.ToLatLon(p.Location)
             };
         }
 
@@ -146,8 +148,8 @@ namespace MapTalkie.Controllers
         {
         }
 
-        [HttpPatch("{id:long}")]
-        public async Task<ActionResult<UpdatePostResponse>> UpdatePost([FromRoute] long id,
+        [HttpPatch("{id}")]
+        public async Task<ActionResult<UpdatePostResponse>> UpdatePost([FromRoute] string id,
             [FromBody] UpdatePostRequest body)
         {
             var post = await _postService.GetPostOrNull(id);
@@ -171,9 +173,9 @@ namespace MapTalkie.Controllers
 
         #region Comments
 
-        [HttpGet("{id:long}/comments")]
+        [HttpGet("{id}/comments")]
         public async Task<ActionResult<ListResponse<PostCommentView>>> GetComments(
-            [FromRoute] long id,
+            [FromRoute] string id,
             [FromServices] ICommentService commentService,
             [FromQuery] DateTime? before = null)
         {
@@ -187,21 +189,19 @@ namespace MapTalkie.Controllers
 
         public class NewCommentRequest
         {
-            public string Text { get; set; } = string.Empty;
-            public long PostId { get; set; }
+            [Required] public string Text { get; set; } = string.Empty;
+            [Required] public string PostId { get; set; } = string.Empty;
             public long? ReplyTo { get; set; }
         }
 
-        [HttpPost("{id:long}/comments")]
+        [HttpPost("{id}/comments")]
         public async Task<ActionResult<PostComment>> CreateComment(
-            [FromRoute] long id,
+            [FromRoute] string id,
             [FromServices] ICommentService commentService,
             [FromBody] NewCommentRequest body)
         {
             if (!await _postService.IsAvailable(id))
-            {
                 return NotFound($"Post with id={id} does not exist or not available at the moment");
-            }
 
             var userId = UserId;
             if (userId == null)
@@ -209,13 +209,9 @@ namespace MapTalkie.Controllers
 
             PostComment comment;
             if (body.ReplyTo == null)
-            {
                 comment = await commentService.CreateComment(body.PostId, userId, body.Text);
-            }
             else
-            {
                 comment = await commentService.ReplyToComment((long)body.ReplyTo, userId, body.Text);
-            }
 
             return comment;
         }
@@ -225,17 +221,14 @@ namespace MapTalkie.Controllers
             [Required] public string Text { get; set; } = string.Empty;
         }
 
-        [HttpPost("{id:long}/comments/{commentId:long}")]
+        [HttpPost("{id}/comments/{commentId:long}")]
         public async Task<ActionResult<PostComment>> UpdateComment(
-            [FromRoute] long id,
+            [FromRoute] string id,
             [FromRoute] long commentId,
             [FromServices] ICommentService commentService,
             [FromBody] UpdateCommentRequest body)
         {
-            if (!await _postService.IsAvailable(id))
-            {
-                return NotFound($"Post with id={id} does not exist");
-            }
+            if (!await _postService.IsAvailable(id)) return NotFound($"Post with id={id} does not exist");
 
             var userId = UserId;
             if (userId == null)
@@ -243,15 +236,9 @@ namespace MapTalkie.Controllers
 
             var comment = await commentService.GetCommentOrNull(commentId);
 
-            if (comment == null)
-            {
-                return NotFound($"Comment with id={commentId} does not exist");
-            }
+            if (comment == null) return NotFound($"Comment with id={commentId} does not exist");
 
-            if (comment.SenderId != userId)
-            {
-                return Forbid("You can't update this comment");
-            }
+            if (comment.SenderId != userId) return Forbid("You can't update this comment");
 
             comment.Text = body.Text;
             await _context.SaveChangesAsync();

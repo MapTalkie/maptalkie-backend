@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net5.0</TargetFramework>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="EntityFramework" Version="6.4.4"/>
+        <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="5.0.11"/>
+        <PackageReference Include="Nanoid" Version="2.1.0"/>
+        <PackageReference Include="NetTopologySuite" Version="2.4.0"/>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.10"/>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="5.0.10"/>
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,13 @@
+using MapTalkieCommon.Messages;
+
+namespace MapTalkie.MessagesImpl
+{
+    public class PrivateMessageEventBase : IPrivateMessage
+    {
+        public int ConversationId { get; set; }
+        public string SenderId { get; set; }
+        public string RecipientId { get; set; }
+        public long MessageId { get; set; }
+        public string Text { get; }
+    }
+}

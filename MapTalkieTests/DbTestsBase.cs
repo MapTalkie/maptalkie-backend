@@ -1,7 +1,6 @@
 using System;
-using MapTalkie.Models.Context;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,7 +10,7 @@ namespace MaptalkieTests
 {
     public class DbTestsBase : TestsBase, IDisposable
     {
-        private readonly SqliteConnection _sqliteConnection = new("DataSource=:memory:");
+        private readonly string _databaseId = "maptalkie_testing_" + Guid.NewGuid().ToString("n");
 
         public DbTestsBase()
         {
@@ -22,15 +21,15 @@ namespace MaptalkieTests
                 .Returns(Environments.Development);
 
             ServiceCollection.AddSingleton(env.Object);
-            ServiceCollection.AddLogging();
 
             ServiceCollection.AddDbContext<AppDbContext>(options =>
             {
-                options.UseSqlite(_sqliteConnection, sqlite => sqlite.UseNetTopologySuite());
+                options.UseNpgsql(
+                    $"Host=localhost;Database=maptalkie_testing_{_databaseId};Username=admin;Password=admin",
+                    o => o.UseNetTopologySuite());
             });
 
             var context = ServiceProvider.GetRequiredService<AppDbContext>();
-            _sqliteConnection.Open();
             context.Database.EnsureCreated();
         }
 
@@ -38,7 +37,8 @@ namespace MaptalkieTests
 
         public void Dispose()
         {
-            _sqliteConnection.Dispose();
+            var context = ServiceProvider.GetRequiredService<AppDbContext>();
+            context.Database.EnsureDeleted();
         }
     }
 }

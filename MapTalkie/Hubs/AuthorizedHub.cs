@@ -1,8 +1,8 @@
 using System;
 using System.Net;
 using System.Threading.Tasks;
-using MapTalkie.Models;
 using MapTalkie.Utils.ErrorHandling;
+using MapTalkieDB;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 
@@ -10,9 +10,9 @@ namespace MapTalkie.Hubs
 {
     public class AuthorizedHub : Hub
     {
+        private readonly DateTime _userCachedAt = DateTime.MinValue;
+        private readonly UserManager<User> _userManager;
         private User? _user;
-        private DateTime _userCachedAt = DateTime.MinValue;
-        private UserManager<User> _userManager;
         protected TimeSpan UserCacheDuration = TimeSpan.FromMinutes(1);
 
         public AuthorizedHub(UserManager<User> userManager)
@@ -39,10 +39,7 @@ namespace MapTalkie.Hubs
 
         protected async Task<User> GetUser()
         {
-            if (_user == null || _userCachedAt + UserCacheDuration < DateTime.Now)
-            {
-                _user = await GetUserImpl();
-            }
+            if (_user == null || _userCachedAt + UserCacheDuration < DateTime.Now) _user = await GetUserImpl();
 
             return _user;
         }

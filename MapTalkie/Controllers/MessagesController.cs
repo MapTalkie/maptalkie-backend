@@ -1,10 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Models;
 using MapTalkie.Services.MessageService;
 using MapTalkie.Utils;
+using MapTalkieDB;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +18,7 @@ namespace MapTalkie.Controllers
     {
         private readonly IMessageService _messageService;
 
-        public MessagesController(UserManager<User> userManager, IMessageService messageService) : base(userManager)
+        public MessagesController(AppDbContext dbContext, IMessageService messageService) : base(dbContext)
         {
             _messageService = messageService;
         }
@@ -46,7 +47,7 @@ namespace MapTalkie.Controllers
             [FromBody] NewMessage body)
         {
             var user = await RequireUser();
-            var recipient = await UserManager.FindByIdAsync(userId);
+            var recipient = await _dbContext.Users.Where(u => u.Id == userId).FirstOrDefaultAsync();
             if (recipient == null)
                 return NotFound();
             var message = await _messageService.SendPrivateMessage(recipient, user, body.Text);
@@ -67,7 +68,7 @@ namespace MapTalkie.Controllers
         {
             var userId = RequireUserId();
             var conversation = await _messageService.GetPrivateConversationOrNull(conversationId);
-            if (conversation == null || (conversation.UserHigherId != userId && conversation.UserLowerId != userId))
+            if (conversation == null || conversation.UserHigherId != userId && conversation.UserLowerId != userId)
                 return Unauthorized();
             var messages = await _messageService.QueryPrivateMessageViews(conversationId).ToListAsync();
             return new ListResponse<PrivateMessageView>(messages);

@@ -33,12 +33,12 @@ namespace MapTalkie.Utils.RTEFC
                 _clusters[cluster.Id] = cluster;
             }
 
-            double closestDistance = double.MaxValue;
+            var closestDistance = double.MaxValue;
             Cluster closest = default!;
 
             foreach (var cluster in _clusters.Values)
             {
-                double distance = cluster.Centroid.Distance(coordinate);
+                var distance = cluster.Centroid.Distance(coordinate);
                 if (closestDistance > distance)
                 {
                     closestDistance = distance;

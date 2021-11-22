@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using MapTalkie.Models;
+using MapTalkieDB;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Services.FriendshipService
@@ -8,6 +8,8 @@ namespace MapTalkie.Services.FriendshipService
     public static class FriendshipServiceExtensions
     {
         public static Task<List<User>> GetFriends(this IFriendshipService service, string userId)
-            => service.QueryFriends(userId).ToListAsync();
+        {
+            return service.QueryFriends(userId).ToListAsync();
+        }
     }
 }

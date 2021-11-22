@@ -18,10 +18,7 @@ namespace MapTalkie.Utils.Binders
 
         public Task BindModelAsync(ModelBindingContext bindingContext)
         {
-            if (bindingContext == null)
-            {
-                throw new ArgumentNullException(nameof(bindingContext));
-            }
+            if (bindingContext == null) throw new ArgumentNullException(nameof(bindingContext));
 
             var modelName = bindingContext.ModelName;
             var valueProviderResult = bindingContext.ValueProvider.GetValue(modelName);
@@ -31,7 +28,6 @@ namespace MapTalkie.Utils.Binders
             {
                 var value = valueProviderResult.FirstValue;
                 if (!string.IsNullOrEmpty(value))
-                {
                     try
                     {
                         var result = _parser.ParseOrThrow(value);
@@ -42,7 +38,6 @@ namespace MapTalkie.Utils.Binders
                     {
                         error = e.Message;
                     }
-                }
             }
 
             if (_isOptional)

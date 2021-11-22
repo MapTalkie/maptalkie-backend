@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
+using MapTalkieDB;
+using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,23 +21,20 @@ namespace MaptalkieTests
                 .AddDefaultTokenProviders();
             userManager = ServiceProvider.GetService<UserManager<User>>();
 
-            PopulateUsers();
+            PopulateUsers().Wait();
         }
 
-        private void PopulateUsers()
+        private async Task PopulateUsers()
         {
-            var tasks = new List<Task>();
             for (var i = 1; i <= 5; i++)
             {
                 var user = new User
                 {
                     UserName = $"User{i}"
                 };
-                tasks.Add(userManager.CreateAsync(user, PASSWORD));
+                await userManager.CreateAsync(user, PASSWORD);
                 UserIds.Add(user.Id);
             }
-
-            Task.WaitAll(tasks.ToArray());
         }
     }
 }

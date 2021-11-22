@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
-using MapTalkie.Models.Context;
 using MapTalkie.Services.FriendshipService;
+using MapTalkieDB.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

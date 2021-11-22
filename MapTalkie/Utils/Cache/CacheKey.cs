@@ -42,10 +42,7 @@ namespace MapTalkie.Utils.Cache
         public override int GetHashCode()
         {
             var hashCode = new HashCode();
-            foreach (var o in _parts)
-            {
-                hashCode.Add(o);
-            }
+            foreach (var o in _parts) hashCode.Add(o);
 
             return hashCode.ToHashCode();
         }

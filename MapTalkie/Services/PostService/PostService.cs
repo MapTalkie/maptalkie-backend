@@ -1,38 +1,42 @@
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using MapTalkie.Configuration;
-using MapTalkie.Models;
-using MapTalkie.Models.Context;
-using MapTalkie.Services.EventBus;
-using MapTalkie.Services.PostService.Events;
-using MapTalkie.Utils.MapUtils;
+using MapTalkie.MessagesImpl;
+using MapTalkieCommon.Messages;
+using MapTalkieCommon.Popularity;
+using MapTalkieCommon.Utils;
+using MapTalkieDB;
+using MapTalkieDB.Context;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
+using Location = MapTalkieCommon.Utils.Location;
 
 namespace MapTalkie.Services.PostService
 {
     public class PostService : DbService, IPostService
     {
-        private readonly IEventBus _eventBus;
-        private readonly IMemoryCache _memoryCache;
-        private readonly IOptions<PostOptions> _postOptions;
+        private readonly IPublishEndpoint _publishEndpoint;
 
         public PostService(
             AppDbContext context,
-            IEventBus eventBus,
-            IMemoryCache memoryCache,
-            IOptions<PostOptions> postOptions) : base(context)
+            IPublishEndpoint publishEndpoint) : base(context)
         {
-            _eventBus = eventBus;
-            _memoryCache = memoryCache;
-            _postOptions = postOptions;
+            _publishEndpoint = publishEndpoint;
         }
 
         #region CRUD things
+
+        public async Task DeletePost(Post post)
+        {
+            post.Available = false;
+            await DbContext.SaveChangesAsync();
+            await _publishEndpoint.Publish<IPostDeleted>(new PostDeletedEvent
+            {
+                PostId = post.Id,
+                Location = (Location)post.Location
+            });
+        }
 
         public async Task<Post> CreateTextPost(
             string text,
@@ -43,17 +47,21 @@ namespace MapTalkie.Services.PostService
             var post = new Post
             {
                 Text = text,
-                Location = location,
+                Location = MapConvert.ToMercator(location),
                 UserId = userId,
                 IsOriginalLocation = isOriginalLocation
             };
             DbContext.Posts.Add(post);
             await DbContext.SaveChangesAsync();
-            //await OnPostCreated(post);
+            await _publishEndpoint.Publish<IPostCreated>(new PostCreatedEvent
+            {
+                PostId = post.Id,
+                Location = (Location)post.Location
+            });
             return post;
         }
 
-        public Task<Post?> GetPostOrNull(long id, bool includeUnavailable)
+        public Task<Post?> GetPostOrNull(string id, bool includeUnavailable)
         {
             var query = DbContext.Posts.Where(m => m.Id == id);
             if (!includeUnavailable)
@@ -73,86 +81,17 @@ namespace MapTalkie.Services.PostService
                 query = DbContext.Posts.Where(m => geometry.Contains(m.Location));
 
             if (availableFor != null)
-            {
                 query = from p in query
                     join b in DbContext.BlacklistedUsers
                         on p.UserId equals b.UserId into bs
                     from b in bs.DefaultIfEmpty()
                     where b.BlacklistedById != availableFor.Id
                     select p;
-            }
 
             return query;
         }
 
-        public IQueryable<dynamic> QueryPopularPostViews(PostView view, Geometry? geometry = null,
-            bool? available = true, User? availableFor = null)
-        {
-            return MakePostViewQuery(QueryPopularPosts(geometry, available, availableFor), view);
-        }
-
-        private IQueryable<object> MakePostViewQuery(IQueryable<Post> query, PostView view)
-        {
-            IQueryable<dynamic> viewQuery = query;
-
-            switch (view)
-            {
-                case PostView.Minimal:
-                    viewQuery = query.Select(p => new
-                    {
-                        p.Id, p.CreatedAt, p.UserId, p.User.UserName,
-                        p.Location, p.IsOriginalLocation, p.UpdatedAt,
-                        Likes = p.Likes.Count,
-                        Reposts = 0,
-                        Comments = p.Comments.Count
-                    });
-                    break;
-                case PostView.Full:
-                    viewQuery = query.Select(p => new
-                    {
-                        p.Id, p.CreatedAt, p.UserId, p.User.UserName,
-                        p.Location, p.IsOriginalLocation, p.UpdatedAt, p.Text,
-                        Likes = p.Likes.Count,
-                        Reposts = 0,
-                        Comments = p.Comments.Count
-                    });
-                    break;
-            }
-
-            return viewQuery;
-        }
-
-
-        private struct PopularPost
-        {
-            public Post Post { get; set; }
-            public PostPopularity Popularity { get; set; }
-        }
-
-        private IQueryable<PopularPost> QueryPopularPostsImpl(
-            int limit = PostServiceDefaults.PopularPostsLimit,
-            Geometry? geometry = null,
-            bool? available = true,
-            User? availableFor = null)
-        {
-            var query = from p in QueryPosts(geometry, available, availableFor)
-                let comments = (from c in DbContext.PostComments where c.PostId == p.Id select c).Count()
-                let likes = (from l in DbContext.PostLikes where l.PostId == p.Id select l).Count()
-                let timeDecay = CalculateDecay(p.CreatedAt)
-                let freshRank = comments + likes * 2
-                let rank = timeDecay * freshRank
-                orderby rank descending
-                select new PopularPost
-                {
-                    Popularity = new PostPopularity
-                        { Rank = rank, FreshRank = freshRank, Comments = comments, Likes = likes, Reposts = 0 },
-                    Post = p
-                };
-
-            return query.Take(limit);
-        }
-
-        public Task<bool> IsAvailable(long id)
+        public Task<bool> IsAvailable(string id)
         {
             return DbContext.Posts.Where(p => p.Id == id && p.Available).AnyAsync();
         }
@@ -168,7 +107,12 @@ namespace MapTalkie.Services.PostService
             var like = new PostLike { UserId = userId, PostId = post.Id };
             DbContext.Add(like);
             await DbContext.SaveChangesAsync();
-            await OnPopularityChange(post);
+            await _publishEndpoint.Publish<IPostEngagement>(new PostEngagementEvent
+            {
+                PostId = post.Id,
+                UserId = userId,
+                Type = PostEngagementType.Favorite
+            });
         }
 
         public async Task UnFavoritePost(Post post, string userId)
@@ -176,7 +120,12 @@ namespace MapTalkie.Services.PostService
             if (!await DbContext.PostLikes.Where(l => l.UserId == userId && l.PostId == post.Id).AnyAsync())
                 return;
             await DbContext.PostLikes.Where(l => l.UserId == userId && l.PostId == post.Id).DeleteFromQueryAsync();
-            await OnPopularityChange(post);
+            await _publishEndpoint.Publish<IPostEngagement>(new PostEngagementEvent
+            {
+                PostId = post.Id,
+                UserId = userId,
+                Type = PostEngagementType.FavoriteRemoved
+            });
         }
 
         #endregion
@@ -189,10 +138,15 @@ namespace MapTalkie.Services.PostService
             User? availableFor = null)
         {
             var query = from p in QueryPosts(geometry, available, availableFor)
-                let comments = p.Comments.Count
-                let likes = p.Likes.Count
-                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
-                let freshRank = comments + likes * 2
+                let comments = p.Comments.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedCommentsCount
+                let likes = p.Likes.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedLikesCount
+                let shares = p.Shares.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedSharesCount
+                let interval = DateTime.Now - p.CreatedAt
+                let timeDecay = Math.Exp(-(interval.Days * 24 + interval.Hours))
+                let freshRank =
+                    comments * PopularityConstants.CommentsMultiplier +
+                    likes * PopularityConstants.LikesMultiplier +
+                    shares * PopularityConstants.SharesMultiplier
                 let rank = freshRank * timeDecay
                 orderby rank descending
                 select p;
@@ -206,11 +160,13 @@ namespace MapTalkie.Services.PostService
             User? availableFor = null)
         {
             return from p in QueryPosts(geometry, available, availableFor)
-                let comments = p.Comments.Count
-                let likes = p.Likes.Count
-                let timeDecay = Math.Exp(-(DateTime.Now - p.CreatedAt).TotalHours)
+                let comments = p.Comments.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedCommentsCount
+                let likes = p.Likes.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedLikesCount
+                let shares = p.Shares.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedSharesCount
+                let interval = DateTime.Now - p.CreatedAt
+                let timeDecay = Math.Exp(-(interval.Days * 24 + interval.Hours))
                 let freshRank = comments + likes * 2
-                let rank = freshRank * timeDecay
+                let rank = (p.CachedFreshRank + freshRank) * timeDecay
                 orderby rank descending
                 select new PostPopularity
                 {
@@ -220,110 +176,44 @@ namespace MapTalkie.Services.PostService
                     Comments = comments,
                     PostId = p.Id,
                     TimeDecayFactor = timeDecay,
-                    Reposts = 0
+                    Shares = 0
                 };
         }
 
-        public IDisposable SubscribeToEngagement(long postId, Func<PostEngagement, Task> callback)
-            => _eventBus.Subscribe(postId, callback);
-
-        public IDisposable SubscribeToEngagement(Polygon polygon, Func<PostEngagement, Task> callback)
-            => _eventBus.Subscribe(polygon, string.Empty, @event => @event.Location, callback);
-
-        private async Task OnPopularityChange(Post post)
+        public IQueryable<Post> QueryByComments(
+            Geometry? geometry = null,
+            User? availableFor = null)
         {
-            var popularity = await GetPopularity(post.Id);
-            await _eventBus.Trigger(post.Id, new PostEngagement
-            {
-                Popularity = popularity,
-                Location = post.Location,
-            });
-
-            await AdjustPopularityCache(post);
+            return from p in QueryPosts(geometry, availableFor: availableFor)
+                let comments = p.CachedCommentsCount + p.Comments.Count(c => c.CreatedAt > p.CacheUpdatedAt)
+                orderby comments descending
+                select p;
         }
 
-        private class PopularityCacheEntry
+        public IQueryable<Post> QueryByLikes(
+            Geometry? geometry = null,
+            User? availableFor = null)
         {
-            public bool Exists { get; set; }
-            public long PostId { get; set; }
-            public double FreshRank { get; set; }
-            public DateTime CreatedAt { get; set; }
-            public SemaphoreSlim Semaphore { get; } = new(1, 1);
-            public double Rank => CalculateDecay(CreatedAt) * Rank;
+            return from p in QueryPosts(geometry, availableFor: availableFor)
+                let likes = p.CachedLikesCount + p.Likes.Count(c => c.CreatedAt > p.CacheUpdatedAt)
+                orderby likes descending
+                select p;
         }
 
-        private static readonly SemaphoreSlim PopularityCacheSemaphore = new(1, 1);
-
-        private async Task AdjustPopularityCache(Post post)
+        public IQueryable<Post> QueryByShares(
+            Geometry? geometry = null,
+            User? availableFor = null)
         {
-            var popularity = await GetPopularity(post.Id);
-            foreach (var zoneDescriptor in MapUtils.GetZones(post.Location))
-            {
-                var key = PostServiceDefaults.PopularPostsInAreaKey[zoneDescriptor.ToIdentifier()];
-                if (!_memoryCache.TryGetValue<PopularityCacheEntry>(key, out var cacheEntry))
-                {
-                    await PopularityCacheSemaphore.WaitAsync();
-                    if (!_memoryCache.TryGetValue<PopularityCacheEntry>(key, out cacheEntry))
-                    {
-                        // инициализировать запись кэша поместив в него N-ый популярный пост в указанной зоне
-                        var leastPopularFromTop = await
-                            QueryPopularPosts(MapUtils.GetZonePolygon(zoneDescriptor))
-                                .Skip(_postOptions.Value.PopularPostsCachedTopCount - 1)
-                                .FirstOrDefaultAsync();
-                        if (leastPopularFromTop == null)
-                        {
-                            cacheEntry = new PopularityCacheEntry { Exists = false };
-                        }
-                        else
-                        {
-                            cacheEntry = new PopularityCacheEntry
-                            {
-                                Exists = true,
-                                PostId = post.Id,
-                                CreatedAt = post.CreatedAt,
-                                FreshRank = popularity.FreshRank
-                            };
-                        }
-
-                        _memoryCache.Set(key, cacheEntry);
-                    }
-                    else
-                    {
-                        // запись кэша обновилась пока мы ждали семафор
-                        if (cacheEntry.PostId != post.Id && cacheEntry.Rank < popularity.Rank)
-                        {
-                            cacheEntry.PostId = post.Id;
-                            cacheEntry.FreshRank = popularity.FreshRank;
-                            cacheEntry.CreatedAt = post.CreatedAt;
-                        }
-                    }
-
-                    PopularityCacheSemaphore.Release();
-                }
-                else
-                {
-                    if (cacheEntry.PostId != post.Id && cacheEntry.Rank < popularity.Rank)
-                    {
-                        await cacheEntry.Semaphore.WaitAsync();
-                        if (cacheEntry.PostId != post.Id && cacheEntry.Rank < popularity.Rank)
-                        {
-                            cacheEntry.PostId = post.Id;
-                            cacheEntry.FreshRank = popularity.FreshRank;
-                            cacheEntry.CreatedAt = post.CreatedAt;
-                        }
-
-                        cacheEntry.Semaphore.Release();
-                    }
-                }
-            }
+            return from p in QueryPosts(geometry, availableFor: availableFor)
+                let shares = p.CachedSharesCount + p.Shares.Count(c => c.CreatedAt > p.CacheUpdatedAt)
+                orderby shares descending
+                select p;
         }
 
-        public Task<PostPopularity> GetPopularity(long postId)
+        public Task<PostPopularity> GetPopularity(string id)
         {
-            return QueryPopularity(available: null).Where(p => p.PostId == postId).FirstOrDefaultAsync();
+            return QueryPopularity(available: null).Where(p => p.PostId == id).FirstOrDefaultAsync();
         }
-
-        private static double CalculateDecay(DateTime dt) => Math.Exp(-(DateTime.Now - dt).TotalHours);
 
         #endregion
     }

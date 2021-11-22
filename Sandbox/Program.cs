@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace Sandbox
 {
-    class Program
+    internal class Program
     {
         private static Point ToWebMercator(double lat, double lon, int level)
         {
@@ -13,11 +13,11 @@ namespace Sandbox
             {
                 X = Math.Floor(256 / (2 * Math.PI) * Math.Pow(2, level) * (lon + Math.PI)),
                 Y = Math.Floor(256 / (2 * Math.PI) * Math.Pow(2, level) *
-                               (Math.PI - Math.Log(Math.Tan(Math.PI / 4 + lat / 2)))),
+                               (Math.PI - Math.Log(Math.Tan(Math.PI / 4 + lat / 2))))
             };
         }
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             while (true)
             {
@@ -47,19 +47,19 @@ namespace Sandbox
             }
         }
 
-        struct Point
+        private struct Point
         {
             public double X;
             public double Y;
         }
 
-        struct LatLng
+        private struct LatLng
         {
             public double Latitude;
             public double Longitude;
         }
 
-        struct Area
+        private struct Area
         {
             public LatLng SouthWest;
             public LatLng NorthEast;
