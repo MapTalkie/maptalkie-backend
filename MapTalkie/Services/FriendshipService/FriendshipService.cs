@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkieDB;
-using MapTalkieDB.Context;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Services.FriendshipService

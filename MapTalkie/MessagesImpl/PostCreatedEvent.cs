@@ -1,12 +1,12 @@
-using MapTalkieCommon.Messages;
-using MapTalkieCommon.Utils;
+using MapTalkie.Common.Messages.Posts;
+using MapTalkie.Common.Utils;
 
 namespace MapTalkie.MessagesImpl
 {
     public class PostCreatedEvent : IPostCreated
     {
-        public string PostId { get; set; }
+        public long PostId { get; set; }
         public string UserId { get; set; }
-        public Location Location { get; set; }
+        public LocationDescriptor Location { get; set; }
     }
 }

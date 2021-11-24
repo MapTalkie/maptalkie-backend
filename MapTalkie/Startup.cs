@@ -1,7 +1,8 @@
 using MapTalkie.Configuration;
+using MapTalkie.Consumers;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using MapTalkie.Hubs;
-using MapTalkieDB;
-using MapTalkieDB.Context;
 using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -28,6 +29,7 @@ namespace MapTalkie
         {
             services.AddMassTransit(options =>
             {
+                options.AddConsumer<UserRelatedEventsConsumer>();
                 options.UsingRabbitMq((context, cfg) =>
                 {
                     var config = Configuration.GetSection("RabbitMQ")?.Get<RabbitMQConfiguration>();

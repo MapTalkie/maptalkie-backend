@@ -2,12 +2,12 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using MapTalkie.Common.Utils;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using MapTalkie.Services.CommentService;
 using MapTalkie.Services.PostService;
 using MapTalkie.Utils;
-using MapTalkieCommon.Utils;
-using MapTalkieDB;
-using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -36,9 +36,9 @@ namespace MapTalkie.Controllers
         #region Delete post
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeletePost([FromRoute] string id)
+        public async Task<IActionResult> DeletePost([FromRoute] long postId)
         {
-            var post = await _postService.GetPostOrNull(id);
+            var post = await _postService.GetPostOrNull(postId);
             if (post == null)
                 return NotFound();
             if (post.UserId != UserId)
@@ -53,9 +53,9 @@ namespace MapTalkie.Controllers
         #region Получить пост(ы)
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Post>> GetPost([FromRoute] string id)
+        public async Task<ActionResult<Post>> GetPost([FromRoute] long postId)
         {
-            var post = await _postService.GetPostOrNull(id);
+            var post = await _postService.GetPostOrNull(postId);
             if (post != null)
                 return post;
             return NotFound();
@@ -149,10 +149,10 @@ namespace MapTalkie.Controllers
         }
 
         [HttpPatch("{id}")]
-        public async Task<ActionResult<UpdatePostResponse>> UpdatePost([FromRoute] string id,
+        public async Task<ActionResult<UpdatePostResponse>> UpdatePost([FromRoute] long postId,
             [FromBody] UpdatePostRequest body)
         {
-            var post = await _postService.GetPostOrNull(id);
+            var post = await _postService.GetPostOrNull(postId);
             if (post == null)
                 return NotFound();
             if (post.UserId == UserId)
@@ -175,28 +175,28 @@ namespace MapTalkie.Controllers
 
         [HttpGet("{id}/comments")]
         public async Task<ActionResult<ListResponse<PostCommentView>>> GetComments(
-            [FromRoute] string id,
+            [FromRoute] long postId,
             [FromServices] ICommentService commentService,
             [FromQuery] DateTime? before = null)
         {
-            if (!await _postService.IsAvailable(id))
+            if (!await _postService.IsAvailable(postId))
                 return NotFound();
 
             return new ListResponse<PostCommentView>(
-                await commentService.QueryCommentViews(id, before, 30).ToListAsync()
+                await commentService.QueryCommentViews(postId, before, 30).ToListAsync()
             );
         }
 
         public class NewCommentRequest
         {
             [Required] public string Text { get; set; } = string.Empty;
-            [Required] public string PostId { get; set; } = string.Empty;
+            [Required] public long PostId { get; set; }
             public long? ReplyTo { get; set; }
         }
 
         [HttpPost("{id}/comments")]
         public async Task<ActionResult<PostComment>> CreateComment(
-            [FromRoute] string id,
+            [FromRoute] long id,
             [FromServices] ICommentService commentService,
             [FromBody] NewCommentRequest body)
         {
@@ -223,12 +223,12 @@ namespace MapTalkie.Controllers
 
         [HttpPost("{id}/comments/{commentId:long}")]
         public async Task<ActionResult<PostComment>> UpdateComment(
-            [FromRoute] string id,
+            [FromRoute] long postId,
             [FromRoute] long commentId,
             [FromServices] ICommentService commentService,
             [FromBody] UpdateCommentRequest body)
         {
-            if (!await _postService.IsAvailable(id)) return NotFound($"Post with id={id} does not exist");
+            if (!await _postService.IsAvailable(postId)) return NotFound($"Post with id={postId} does not exist");
 
             var userId = UserId;
             if (userId == null)

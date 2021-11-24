@@ -3,9 +3,9 @@ using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using MapTalkie.Utils.ErrorHandling;
-using MapTalkieDB;
-using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MapTalkie.Controllers

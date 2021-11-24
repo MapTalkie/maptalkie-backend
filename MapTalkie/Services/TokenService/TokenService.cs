@@ -2,7 +2,7 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using MapTalkie.Configuration;
-using MapTalkieDB;
+using MapTalkie.DB;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -47,7 +47,7 @@ namespace MapTalkie.Services.TokenService
                 {
                     new Claim(ClaimTypes.NameIdentifier, user.Id)
                 }),
-                Expires = DateTime.Now.Add(options.Lifetime),
+                Expires = DateTime.UtcNow.Add(options.Lifetime),
                 Issuer = _jwtSettings.Issuer,
                 Audience = _jwtSettings.Audience.IsNullOrEmpty() ? null : _jwtSettings.Audience,
                 SigningCredentials = new SigningCredentials(_jwtSettings.GetSecurityKey(),

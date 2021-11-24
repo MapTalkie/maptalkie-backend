@@ -2,7 +2,7 @@ namespace MapTalkie.Services.PostService
 {
     public class PostPopularity
     {
-        public string PostId { get; set; }
+        public long PostId { get; set; }
         public double Rank { get; set; }
         public double FreshRank { get; set; }
         public double TimeDecayFactor { get; set; }

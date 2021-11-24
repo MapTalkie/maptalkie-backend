@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkieDB;
+using MapTalkie.DB;
 
 namespace MapTalkie.Services.MessageService
 {

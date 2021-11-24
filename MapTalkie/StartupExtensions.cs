@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using IdGen;
 using MapTalkie.Configuration;
+using MapTalkie.DB.Context;
+using MapTalkie.Services.AuthService;
 using MapTalkie.Services.CommentService;
 using MapTalkie.Services.FriendshipService;
 using MapTalkie.Services.MessageService;
@@ -8,7 +11,6 @@ using MapTalkie.Services.PostService;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
 using MapTalkie.Utils.JsonConverters;
-using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -26,6 +28,7 @@ namespace MapTalkie
         {
             services
                 .AddScoped<ICommentService, CommentService>()
+                .AddScoped<IAuthService, AuthService>()
                 .AddScoped<IFriendshipService, FriendshipService>()
                 .AddScoped<ITokenService, TokenService>()
                 .AddScoped<IMessageService, MessageService>()
@@ -60,6 +63,7 @@ namespace MapTalkie
                     builder.AllowAnyMethod();
 
                     builder.WithHeaders(
+                        "X-SignalR-User-Agent",
                         HeaderNames.ContentType,
                         HeaderNames.Authorization,
                         HeaderNames.Accept,
@@ -71,6 +75,8 @@ namespace MapTalkie
 
         public static void AddAppDbContext(this IServiceCollection services, IConfiguration configuration)
         {
+            // TODO поменять
+            services.AddSingleton(new IdGenerator(0));
             services.AddDbContext<AppDbContext>(options =>
             {
                 string connectionString = configuration.GetConnectionString("Postgres");

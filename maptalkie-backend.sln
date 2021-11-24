@@ -2,13 +2,13 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie", "MapTalkie\MapTalkie.csproj", "{28FD4174-3223-4493-9533-BA1D8A4A2449}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkieTests", "MapTalkieTests\MapTalkieTests.csproj", "{24300589-BBE9-4242-8CBF-E4AFAEC7C344}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Tests", "MapTalkie.Tests\MapTalkie.Tests.csproj", "{24300589-BBE9-4242-8CBF-E4AFAEC7C344}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkieDB", "MapTalkieDB\MapTalkieDB.csproj", "{96376A48-3877-44C2-980C-661F1B5D6A75}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.DB", "MapTalkie.DB\MapTalkie.DB.csproj", "{96376A48-3877-44C2-980C-661F1B5D6A75}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkieCommon", "MapTalkieCommon\MapTalkieCommon.csproj", "{1857148C-0B10-4F87-A670-B7FAA5491192}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Common", "MapTalkie.Common\MapTalkie.Common.csproj", "{1857148C-0B10-4F87-A670-B7FAA5491192}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkieWorker", "MapTalkieWorker\MapTalkieWorker.csproj", "{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Services.LiveEventsConsumers", "MapTalkie.Services.LiveEventsConsumers\MapTalkie.Services.LiveEventsConsumers.csproj", "{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,10 +1,10 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using MapTalkie.Common.Messages.Posts;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using MapTalkie.MessagesImpl;
-using MapTalkieCommon.Messages;
-using MapTalkieDB;
-using MapTalkieDB.Context;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +19,7 @@ namespace MapTalkie.Services.CommentService
             _publishEndpoint = publishEndpoint;
         }
 
-        public async Task<PostComment> CreateComment(string postId, string senderId, string text)
+        public async Task<PostComment> CreateComment(long postId, string senderId, string text)
         {
             var comment = new PostComment
             {
@@ -127,7 +127,7 @@ namespace MapTalkie.Services.CommentService
             }
         }
 
-        public IQueryable<PostComment> QueryComments(string postId)
+        public IQueryable<PostComment> QueryComments(long postId)
         {
             return DbContext.PostComments
                 .Where(c => c.PostId == postId)
@@ -135,7 +135,7 @@ namespace MapTalkie.Services.CommentService
         }
 
         public IQueryable<PostCommentView> QueryCommentViews(
-            string postId,
+            long postId,
             DateTime? before = null,
             int? limit = null)
         {

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using MapTalkieDB;
+using MapTalkie.DB;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Services.FriendshipService

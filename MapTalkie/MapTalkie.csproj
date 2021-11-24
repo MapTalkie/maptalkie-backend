@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="EntityFramework" Version="6.4.4"/>
+        <PackageReference Include="MassTransit.Analyzers" Version="7.2.4"/>
         <PackageReference Include="MassTransit.AspNetCore" Version="7.2.4"/>
         <PackageReference Include="MassTransit.RabbitMQ" Version="7.2.4"/>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.11"/>
@@ -38,12 +39,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\MapTalkieDB\MapTalkieDB.csproj"/>
-        <ProjectReference Include="..\MapTalkieCommon\MapTalkieCommon.csproj"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="Consumers"/>
+        <ProjectReference Include="..\MapTalkie.DB\MapTalkie.DB.csproj"/>
+        <ProjectReference Include="..\MapTalkie.Common\MapTalkie.Common.csproj"/>
     </ItemGroup>
 
 

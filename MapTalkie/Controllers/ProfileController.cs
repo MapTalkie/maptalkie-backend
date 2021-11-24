@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
-using MapTalkieDB;
-using MapTalkieDB.Context;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

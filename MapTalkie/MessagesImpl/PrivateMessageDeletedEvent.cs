@@ -1,4 +1,4 @@
-using MapTalkieCommon.Messages;
+using MapTalkie.Common.Messages.PrivateMessages;
 
 namespace MapTalkie.MessagesImpl
 {

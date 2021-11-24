@@ -1,16 +1,15 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using MapTalkie.Common.Messages.Posts;
+using MapTalkie.Common.Popularity;
+using MapTalkie.Common.Utils;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using MapTalkie.MessagesImpl;
-using MapTalkieCommon.Messages;
-using MapTalkieCommon.Popularity;
-using MapTalkieCommon.Utils;
-using MapTalkieDB;
-using MapTalkieDB.Context;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using Location = MapTalkieCommon.Utils.Location;
 
 namespace MapTalkie.Services.PostService
 {
@@ -34,7 +33,7 @@ namespace MapTalkie.Services.PostService
             await _publishEndpoint.Publish<IPostDeleted>(new PostDeletedEvent
             {
                 PostId = post.Id,
-                Location = (Location)post.Location
+                LocationDescriptor = (LocationDescriptor)post.Location
             });
         }
 
@@ -56,14 +55,14 @@ namespace MapTalkie.Services.PostService
             await _publishEndpoint.Publish<IPostCreated>(new PostCreatedEvent
             {
                 PostId = post.Id,
-                Location = (Location)post.Location
+                Location = (LocationDescriptor)post.Location
             });
             return post;
         }
 
-        public Task<Post?> GetPostOrNull(string id, bool includeUnavailable)
+        public Task<Post?> GetPostOrNull(long postId, bool includeUnavailable)
         {
-            var query = DbContext.Posts.Where(m => m.Id == id);
+            var query = DbContext.Posts.Where(m => m.Id == postId);
             if (!includeUnavailable)
                 query = query.Where(p => p.Available);
             return query.FirstOrDefaultAsync()!;
@@ -91,9 +90,9 @@ namespace MapTalkie.Services.PostService
             return query;
         }
 
-        public Task<bool> IsAvailable(string id)
+        public Task<bool> IsAvailable(long postId)
         {
-            return DbContext.Posts.Where(p => p.Id == id && p.Available).AnyAsync();
+            return DbContext.Posts.Where(p => p.Id == postId && p.Available).AnyAsync();
         }
 
         #endregion
@@ -141,7 +140,7 @@ namespace MapTalkie.Services.PostService
                 let comments = p.Comments.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedCommentsCount
                 let likes = p.Likes.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedLikesCount
                 let shares = p.Shares.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedSharesCount
-                let interval = DateTime.Now - p.CreatedAt
+                let interval = DateTime.UtcNow - p.CreatedAt
                 let timeDecay = Math.Exp(-(interval.Days * 24 + interval.Hours))
                 let freshRank =
                     comments * PopularityConstants.CommentsMultiplier +
@@ -163,7 +162,7 @@ namespace MapTalkie.Services.PostService
                 let comments = p.Comments.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedCommentsCount
                 let likes = p.Likes.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedLikesCount
                 let shares = p.Shares.Count(c => c.CreatedAt > p.CacheUpdatedAt) + p.CachedSharesCount
-                let interval = DateTime.Now - p.CreatedAt
+                let interval = DateTime.UtcNow - p.CreatedAt
                 let timeDecay = Math.Exp(-(interval.Days * 24 + interval.Hours))
                 let freshRank = comments + likes * 2
                 let rank = (p.CachedFreshRank + freshRank) * timeDecay
@@ -210,9 +209,9 @@ namespace MapTalkie.Services.PostService
                 select p;
         }
 
-        public Task<PostPopularity> GetPopularity(string id)
+        public Task<PostPopularity> GetPopularity(long postId)
         {
-            return QueryPopularity(available: null).Where(p => p.PostId == id).FirstOrDefaultAsync();
+            return QueryPopularity(available: null).Where(p => p.PostId == postId).FirstOrDefaultAsync();
         }
 
         #endregion

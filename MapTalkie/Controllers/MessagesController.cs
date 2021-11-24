@@ -1,10 +1,10 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using MapTalkie.DB;
+using MapTalkie.DB.Context;
 using MapTalkie.Services.MessageService;
 using MapTalkie.Utils;
-using MapTalkieDB;
-using MapTalkieDB.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

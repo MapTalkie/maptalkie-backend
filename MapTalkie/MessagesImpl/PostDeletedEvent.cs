@@ -1,11 +1,11 @@
-using MapTalkieCommon.Messages;
-using MapTalkieCommon.Utils;
+using MapTalkie.Common.Messages.Posts;
+using MapTalkie.Common.Utils;
 
 namespace MapTalkie.MessagesImpl
 {
     public class PostDeletedEvent : IPostDeleted
     {
-        public string PostId { get; set; }
-        public Location Location { get; set; }
+        public long PostId { get; set; }
+        public LocationDescriptor LocationDescriptor { get; set; }
     }
 }

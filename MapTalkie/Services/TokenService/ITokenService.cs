@@ -1,5 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
-using MapTalkieDB;
+using MapTalkie.DB;
 
 namespace MapTalkie.Services.TokenService
 {

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using MapTalkie.Common.Utils;
+using MapTalkie.DB;
 using MapTalkie.Services.PostService;
-using MapTalkieCommon.Utils;
-using MapTalkieDB;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -74,27 +74,44 @@ namespace MapTalkie.Hubs
             [Required] public SubscriptionType SubscriptionType { get; set; }
         }
 
-        public async Task ConfigureSubscription(Polygon polygon, SubscriptionType subscriptionType)
+        public Task SetViewPort(Point northEast, Point southEast) =>
+            ConfigureSubscription(northEast, southEast, _subscriptionType);
+
+        public Task SetSubscriptionType(SubscriptionType subscriptionType) =>
+            ConfigureSubscription(northEast, southEast, _subscriptionType);
+
+        public async Task ConfigureSubscription(Point northEast, Point southWest, SubscriptionType subscriptionType)
         {
+            northEast = MapConvert.ToMercator(northEast);
+            southWest = MapConvert.ToMercator(southWest);
+            var polygon = new Polygon(new LinearRing(
+                new[]
+                {
+                    new Coordinate(northEast.X, northEast.Y),
+                    new Coordinate(northEast.X, southWest.Y),
+                    new Coordinate(southWest.X, southWest.Y),
+                    new Coordinate(southWest.X, northEast.Y),
+                    new Coordinate(northEast.X, northEast.Y),
+                }));
             var oldPoly = _subscriptionPolygon;
             var oldType = _subscriptionType;
             _subscriptionPolygon = polygon;
             _subscriptionType = subscriptionType;
 
             if (oldPoly == null ||
-                !ZoneId.IsSameArea(oldPoly, polygon) ||
+                !AreaId.IsSameArea(oldPoly, polygon) ||
                 subscriptionType != oldType)
             {
                 if (oldPoly != null)
                 {
                     await Groups.RemoveFromGroupAsync(
                         Context.ConnectionId,
-                        MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + ZoneId.FromPolygon(oldPoly).Id);
+                        MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + AreaId.FromPolygon(oldPoly).Id);
                 }
 
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,
-                    MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + ZoneId.FromPolygon(polygon));
+                    MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + AreaId.FromPolygon(polygon));
 
                 await SendPostsInCurrentArea();
             }
@@ -125,18 +142,18 @@ namespace MapTalkie.Hubs
                 Shares = 0,
                 Comments = p.Comments.Count
             }).Take(100).ToListAsync();
-            await Clients.Caller.SendAsync("Posts", views, _subscriptionType);
+            await Clients.Caller.SendAsync("Posts", views, _subscriptionPolygon, _subscriptionType);
         }
 
         #endregion
 
         #region Engagement
 
-        private HashSet<string> _trackingPosts = new();
+        private HashSet<long> _trackingPosts = new();
 
-        public async Task TrackPosts(string[] postIds)
+        public async Task TrackPosts(long[] postIds)
         {
-            var set = new HashSet<string>(postIds);
+            var set = new HashSet<long>(postIds);
             foreach (var postId in _trackingPosts.Where(postId => !set.Contains(postId)))
             {
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);

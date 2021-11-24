@@ -1,11 +1,12 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using MapTalkie.Common.Messages.Email;
 using MapTalkie.Configuration;
+using MapTalkie.DB;
 using MapTalkie.MessagesImpl;
+using MapTalkie.Services.AuthService;
 using MapTalkie.Services.TokenService;
-using MapTalkieCommon.Messages;
-using MapTalkieDB;
 using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -18,59 +19,108 @@ namespace MapTalkie.Controllers
     [Route("[controller]")]
     public class AuthController : Controller
     {
+        private readonly IOptions<AuthenticationSettings> _authenticationSettings;
+        private readonly IAuthService _authService;
+        private readonly ITokenService _tokenService;
+        private readonly UserManager<User> _userManager;
+
+        public AuthController(
+            ITokenService tokenService,
+            IAuthService authService,
+            UserManager<User> userManager,
+            IOptions<AuthenticationSettings> authenticationSettings)
+        {
+            _userManager = userManager;
+            _tokenService = tokenService;
+            _authenticationSettings = authenticationSettings;
+            _authService = authService;
+        }
+
         [HttpPost("signin")]
         public Task<ActionResult<LoginResponse>> SignIn(
             [FromBody] LoginRequest body,
-            [FromServices] UserManager<User> manager,
-            [FromServices] IOptions<AuthenticationSettings> authenticationSettings,
             [FromServices] ITokenService tokenService)
         {
-            return SignInPrivate(body, manager, authenticationSettings.Value, tokenService, false);
+            return SignInPrivate(body, false);
         }
 
         [HttpPost("hybrid-signin")]
-        public Task<ActionResult<LoginResponse>> HybridSignIn(
-            [FromBody] LoginRequest body,
-            [FromServices] UserManager<User> manager,
-            [FromServices] AuthenticationSettings authenticationSettings,
-            [FromServices] ITokenService tokenService)
+        public Task<ActionResult<LoginResponse>> HybridSignIn([FromBody] LoginRequest body)
         {
-            return SignInPrivate(body, manager, authenticationSettings, tokenService, true);
+            return SignInPrivate(body, true);
         }
 
-        private async Task<ActionResult<LoginResponse>> SignInPrivate(
-            LoginRequest body,
-            UserManager<User> manager,
-            AuthenticationSettings authenticationSettings,
-            ITokenService tokenService,
-            bool hybrid)
+        private async Task<ActionResult<LoginResponse>> SignInPrivate(LoginRequest body, bool hybrid)
         {
-            var user = await manager.FindByNameAsync(body.UserName);
+            var user = await _userManager.FindByNameAsync(body.UserName);
             if (user == null)
                 return Unauthorized();
 
-            if (await manager.CheckPasswordAsync(user, body.Password))
+            if (await _userManager.CheckPasswordAsync(user, body.Password))
             {
-                var token = tokenService.CreateToken(user);
-                if (hybrid)
-                    Response.Cookies.Append(
-                        authenticationSettings.HybridCookieName,
-                        token.Signature,
-                        new CookieOptions
-                        {
-                            HttpOnly = true,
-                            SameSite = SameSiteMode.None,
-                            Secure = true, // TODO remove this comment
-                            Expires = DateTimeOffset.Now.AddDays(10)
-                        });
+                var refreshToken = await _authService.CreateRefreshToken(user);
+                var token = _tokenService.CreateToken(user);
 
-                return new LoginResponse
-                {
-                    Token = hybrid ? token.TokenBase : token.FullToken
-                };
+
+                return MakeLoginResponse(token, refreshToken, hybrid);
             }
 
             return Unauthorized();
+        }
+
+        private ActionResult<LoginResponse> MakeLoginResponse(JwtTokenResult token, IRefreshTokenResult refreshToken,
+            bool hybrid)
+        {
+            if (hybrid)
+            {
+                Response.Cookies.Append(
+                    _authenticationSettings.Value.HybridCookieName,
+                    token.Signature,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        SameSite = SameSiteMode.None,
+                        Secure = true,
+                        Expires = DateTimeOffset.Now.AddDays(10)
+                    });
+
+                Response.Cookies.Append(
+                    _authenticationSettings.Value.RefreshTokenCookieName,
+                    refreshToken.Token,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        SameSite = SameSiteMode.None,
+                        Secure = true,
+                        Path = new Uri(Url.RouteUrl("AuthHybridTokenRefresh")).AbsolutePath,
+                        Expires = DateTimeOffset.Now + _authenticationSettings.Value.RefreshTokenLifetime
+                    });
+            }
+
+            return new LoginResponse
+            {
+                Token = hybrid ? token.TokenBase : token.FullToken,
+                RefreshToken = hybrid ? null : refreshToken.Token
+            };
+        }
+
+        [HttpPost("refresh")]
+        public Task<ActionResult<LoginResponse>> RefreshToken([FromBody] RefreshTokenRequest body)
+            => RefreshTokenPrivate(body.RefreshToken, false);
+
+        [HttpPost("hybrid-refresh", Name = "AuthHybridTokenRefresh")]
+        public Task<ActionResult<LoginResponse>> HybridRefreshToken([FromBody] RefreshTokenRequest body)
+            => RefreshTokenPrivate(body.RefreshToken, true);
+
+        private async Task<ActionResult<LoginResponse>> RefreshTokenPrivate(string refreshToken, bool hybrid)
+        {
+            var token = await _authService.FindRefreshToken(refreshToken);
+            if (token == null)
+                return Unauthorized("Refresh token is invalid or expired");
+            var user = await _userManager.FindByIdAsync(token.UserId);
+            var newToken = await _authService.RotateToken(token);
+            var accessToken = _tokenService.CreateToken(user);
+            return MakeLoginResponse(accessToken, newToken, hybrid);
         }
 
         [HttpPost("signup")]
@@ -108,6 +158,7 @@ namespace MapTalkie.Controllers
         public class LoginResponse
         {
             public string Token { get; set; } = string.Empty;
+            public string? RefreshToken { get; set; } = string.Empty;
         }
 
         public class SignUpRequest
@@ -123,6 +174,11 @@ namespace MapTalkie.Controllers
         public class SignUpResponse
         {
             public string Detail { get; set; } = string.Empty;
+        }
+
+        public class RefreshTokenRequest
+        {
+            [Required] public string RefreshToken { get; set; } = string.Empty;
         }
     }
 }

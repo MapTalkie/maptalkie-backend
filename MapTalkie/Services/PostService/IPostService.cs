@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkieDB;
+using MapTalkie.DB;
 using NetTopologySuite.Geometries;
 
 namespace MapTalkie.Services.PostService
@@ -13,7 +13,7 @@ namespace MapTalkie.Services.PostService
             Point location,
             bool isOriginalLocation);
 
-        Task<Post?> GetPostOrNull(string id, bool includeUnavailable = false);
+        Task<Post?> GetPostOrNull(long postId, bool includeUnavailable = false);
 
         IQueryable<Post> QueryPosts(
             Geometry? geometry = null,
@@ -42,9 +42,9 @@ namespace MapTalkie.Services.PostService
             Geometry? geometry = null,
             User? availableFor = null);
 
-        Task<bool> IsAvailable(string id);
+        Task<bool> IsAvailable(long postId);
 
-        Task<PostPopularity> GetPopularity(string id);
+        Task<PostPopularity> GetPopularity(long postId);
 
         Task FavoritePost(Post post, string userId);
 

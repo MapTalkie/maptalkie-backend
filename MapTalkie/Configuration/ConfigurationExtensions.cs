@@ -6,7 +6,7 @@ namespace MapTalkie.Configuration
     {
         internal static T GetSection<T>(this IConfiguration configuration)
         {
-            return configuration.GetSection(nameof(T)).Get<T>();
+            return configuration.GetSection(typeof(T).Name).Get<T>();
         }
     }
 }

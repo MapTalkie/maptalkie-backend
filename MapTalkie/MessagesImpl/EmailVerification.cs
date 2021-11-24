@@ -1,4 +1,4 @@
-using MapTalkieCommon.Messages;
+using MapTalkie.Common.Messages.Email;
 
 namespace MapTalkie.MessagesImpl
 {
