@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using NetTopologySuite.Geometries;
 
 namespace MapTalkie.DB
@@ -9,13 +10,14 @@ namespace MapTalkie.DB
         public long Id { get; set; }
         public string Text { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
-        public User User { get; set; } = null!; // will be initialized by EF
-        public Point Location { get; set; } = default!; // in Web Mercator
+        [IgnoreDataMember] public User User { get; set; } = null!; // will be initialized by EF
+        [IgnoreDataMember] public Point Location { get; set; } = default!; // in Web Mercator
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; } = null;
+        public DateTime? UpdatedAt { get; set; }
         public bool Available { get; set; } = true;
         public bool IsOriginalLocation { get; set; } = true;
         public long? SharedId { get; set; }
+        [IgnoreDataMember] public Post? Shared { get; set; }
 
         public int CachedLikesCount { get; set; }
         public int CachedSharesCount { get; set; }
@@ -23,9 +25,8 @@ namespace MapTalkie.DB
         public double CachedFreshRank { get; set; } = 0.0;
         public DateTime CacheUpdatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<PostComment> Comments { get; set; } = default!;
-        public ICollection<PostLike> Likes { get; set; } = default!;
-        public ICollection<Post> Shares { get; set; } = default!;
-        public Post? Shared { get; set; } = default!;
+        [IgnoreDataMember] public ICollection<PostComment> Comments { get; set; } = default!;
+        [IgnoreDataMember] public ICollection<PostLike> Likes { get; set; } = default!;
+        [IgnoreDataMember] public ICollection<Post> Shares { get; set; } = default!;
     }
 }

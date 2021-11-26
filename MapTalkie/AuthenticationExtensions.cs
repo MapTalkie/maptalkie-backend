@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using MapTalkie.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
@@ -12,7 +13,7 @@ namespace MapTalkie
     {
         private const string HybridAuthenticationSchema = "HybridBearer";
 
-        internal static void AddAppAuthorization(
+        public static void AddAppAuthorization(
             this IServiceCollection services,
             JwtSettings jwtSettings,
             AuthenticationSettings authenticationSettings)
@@ -38,6 +39,13 @@ namespace MapTalkie
                     .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, HybridAuthenticationSchema)
                     .Build();
             });
+        }
+
+        public static void AddAppAuthorization(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddAppAuthorization(
+                configuration.GetSection<JwtSettings>(),
+                configuration.GetSection<AuthenticationSettings>());
         }
 
         private static void SetupJwtBearerCommonOptions(JwtBearerOptions options, JwtSettings jwtSettings)

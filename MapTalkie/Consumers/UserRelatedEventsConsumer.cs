@@ -13,11 +13,11 @@ namespace MapTalkie.Consumers
     public class UserRelatedEventsConsumer :
         IConsumer<IAccumulatedEngagementEvent>,
         IConsumer<IGeoUpdate>,
-        IConsumer<IPrivateMessage>
+        IConsumer<IPrivateMessageBase>
     {
-        private readonly IHubContext<MainUserHub> _hubContext;
+        private readonly IHubContext<UserHub> _hubContext;
 
-        public UserRelatedEventsConsumer(IHubContext<MainUserHub> hubContext)
+        public UserRelatedEventsConsumer(IHubContext<UserHub> hubContext)
         {
             _hubContext = hubContext;
         }
@@ -25,47 +25,59 @@ namespace MapTalkie.Consumers
         public Task Consume(ConsumeContext<IAccumulatedEngagementEvent> context)
         {
             return _hubContext.Clients.Group(MapTalkieGroups.PostUpdatesPrefix + context.Message.PostId)
-                .SendAsync("Engagement", new
+                .SendAsync(UserHub.PostEngagement, new
                 {
                     Id = context.Message.PostId,
-                    Comments = context.Message.Comments,
-                    Likes = context.Message.Likes,
-                    Shares = context.Message.Shares,
-                    Latitude = context.Message.LocationDescriptor.Latitude,
-                    Longitude = context.Message.LocationDescriptor.Longitude
+                    context.Message.Comments,
+                    context.Message.Likes,
+                    context.Message.Shares,
+                    context.Message.LocationDescriptor.Latitude,
+                    context.Message.LocationDescriptor.Longitude
                 });
         }
 
         public async Task Consume(ConsumeContext<IGeoUpdate> context)
         {
             foreach (var update in context.Message.Updates)
-            {
                 await _hubContext.Clients
-                    .Group(MapTalkieGroups.AreaUpdatesPrefix + MainUserHub.SubscriptionType.Latest + update.Id)
+                    .Group(MapTalkieGroups.AreaUpdatesPrefix + UserHub.SubscriptionType.Latest + update.Id)
                     .SendAsync("NewPosts", new
                     {
                         Posts = update.NewPosts.Select(p => new
                         {
                             Id = p.PostId,
-                            UserId = p.UserId,
-                            Latitude = p.Location.Latitude,
-                            Longitude = p.Location.Longitude
+                            p.UserId,
+                            p.Location.Latitude,
+                            p.Location.Longitude
                         })
                     });
-            }
         }
 
-        public async Task Consume(ConsumeContext<IPrivateMessage> context)
+        public async Task Consume(ConsumeContext<IPrivateMessageBase> context)
         {
-            await _hubContext.Clients.Group(MapTalkieGroups.ConversationPrefix + context.Message.ConversationId)
-                .SendAsync("PrivateMessage", new
-                {
-                    Id = context.Message.MessageId,
-                    context.Message.Text,
-                    context.Message.RecipientId,
-                    context.Message.SenderId,
-                    context.Message.ConversationId,
-                });
+            var groupProxy =
+                _hubContext.Clients.Group(MapTalkieGroups.Conversation(context.Message.SenderId,
+                    context.Message.RecipientId));
+            switch (context.Message)
+            {
+                case IPrivateMessage privateMessage:
+                    await groupProxy.SendAsync(UserHub.DirectMessage, new
+                    {
+                        Id = privateMessage.MessageId,
+                        privateMessage.Text,
+                        privateMessage.RecipientId,
+                        privateMessage.SenderId
+                    });
+                    break;
+                case IPrivateMessageDeleted privateMessageDeleted:
+                    await groupProxy.SendAsync(UserHub.DirectMessageDeleted, new
+                    {
+                        privateMessageDeleted.MessageId,
+                        privateMessageDeleted.RecipientId
+                    });
+                    break;
+            }
+            // TODO событие Update?
         }
     }
 }

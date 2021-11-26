@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using MapTalkie.Common.Utils;
 using MapTalkie.DB;
@@ -109,7 +110,7 @@ namespace MapTalkie.Controllers
         public class NewPostRequest
         {
             [Required] public string Text { get; set; } = string.Empty;
-            [Required] public Point Location { get; set; } = default!;
+            [Required, IgnoreDataMember] public Point Location { get; set; } = default!;
             public bool IsFakeLocation { get; set; } = false;
         }
 

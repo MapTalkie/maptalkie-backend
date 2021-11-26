@@ -8,9 +8,9 @@ using Microsoft.Extensions.Hosting;
 
 namespace MapTalkie.Services.LiveEventsConsumers
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             var builder = new HostBuilder()
                 .ConfigureAppConfiguration((context, config) =>

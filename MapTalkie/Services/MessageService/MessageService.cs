@@ -1,10 +1,9 @@
-using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.Common.Messages.PrivateMessages;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
-using MapTalkie.MessagesImpl;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,150 +18,114 @@ namespace MapTalkie.Services.MessageService
             _publishEndpoint = publishEndpoint;
         }
 
-        public IQueryable<PrivateConversation> QueryPrivateConversations(string userId)
+        public async Task<List<MessageView>> GetDirectMessages(
+            string userId,
+            string recipientId,
+            GetDirectMessagesOptions? options = null)
         {
-            return DbContext.PrivateConversations.Where(pc => pc.UserHigherId == userId || pc.UserLowerId == userId);
-        }
+            var beforeTime = options?.BeforeTime;
 
-        public IQueryable<PrivateConversationView> QueryPrivateConversationViews(string userId)
-        {
-            return
-                from c in QueryPrivateConversations(userId)
-                let lastMessage = c.PrivateMessages.OrderByDescending(m => m.CreatedAt).FirstOrDefault()
-                select new PrivateConversationView
+            var messages =
+                from mr in DbContext.PrivateMessageReceipts
+                where
+                    mr.UserIdA == userId && mr.Message.Available &&
+                    (beforeTime == null || mr.Message.CreatedAt < beforeTime)
+                select new MessageView
                 {
-                    Id = c.Id,
-                    LastMessage = lastMessage.Text,
-                    ActiveAt = lastMessage.CreatedAt,
-                    RecipientId = c.UserHigherId == userId ? c.UserLowerId : c.UserHigherId
+                    Id = mr.MessageId,
+                    Sender = mr.Message.Sender.UserName,
+                    SenderId = mr.Message.SenderId,
+                    Text = mr.Message.Text,
+                    Read = mr.Message.Read
                 };
+
+            if (options?.Limit != null)
+                messages = messages.Take((int)options.Limit);
+            return await messages.ToListAsync();
         }
 
-        public IQueryable<MapTalkie.DB.PrivateMessage> QueryPrivateMessages(int conversationId)
+        public async Task<List<ConversationView>> GetUserConversations(string userId)
         {
-            return DbContext.PrivateMessages.Where(pm => pm.ConversationId == conversationId && pm.Available);
+            var conversations =
+                from cp in DbContext.PrivateConversationParticipants
+                where cp.IsActive && cp.SenderId == userId
+                let lastMessage = DbContext.PrivateMessageReceipts
+                    .LastOrDefault(r => r.UserIdA == userId && r.UserIdB == cp.RecipientId)
+                select new ConversationView
+                {
+                    Recipient = new UserInMessageView
+                    {
+                        Id = cp.RecipientId,
+                        UserName = cp.Recipient.UserName
+                    },
+                    CanSend = false,
+                    LastMessage = lastMessage == null
+                        ? null
+                        : new MessageView
+                        {
+                            Id = lastMessage.Message.Id,
+                            Read = lastMessage.Message.Read,
+                            Sender = lastMessage.Message.Sender.UserName,
+                            SenderId = lastMessage.Message.Sender.Id,
+                            Text = lastMessage.Message.Text
+                        },
+                    LastUpdate = default
+                };
+
+            return await conversations.ToListAsync();
         }
 
-        public IQueryable<PrivateMessageView> QueryPrivateMessageViews(int conversationId)
+        public async Task<PrivateMessage> CreateMessage(string userId1, string userId2, string text)
         {
-            return QueryPrivateMessages(conversationId).Select(m => new PrivateMessageView
-            {
-                Id = m.Id,
-                Read = m.Read,
-                SenderId = m.SenderId,
-                SenderName = m.Sender.UserName,
-                RecipientId = m.RecipientId,
-                RecipientName = m.Recipient.UserName,
-                Text = m.Text
-            });
-        }
-
-        public Task<MapTalkie.DB.PrivateMessage?> GetPrivateMessageOrNull(long id)
-        {
-            return DbContext.PrivateMessages
-                .Where(pm => pm.Id == id && pm.Available)
-                .FirstOrDefaultAsync()!;
-        }
-
-        public Task<PrivateConversation?> GetPrivateConversationOrNull(long id)
-        {
-            return DbContext.PrivateConversations.Where(pm => pm.Id == id).FirstOrDefaultAsync()!;
-        }
-
-
-        public async Task<MapTalkie.DB.PrivateMessage> SendPrivateMessage(PrivateConversation privateConversation,
-            User sender,
-            string text)
-        {
-            var recipientId = privateConversation.UserHigherId == sender.Id
-                ? privateConversation.UserLowerId
-                : privateConversation.UserHigherId;
-            var pm = new MapTalkie.DB.PrivateMessage
+            var message = new PrivateMessage
             {
                 Text = text,
-                Sender = sender,
-                Conversation = privateConversation,
-                RecipientId = recipientId
-            };
-            DbContext.Add(pm);
-            await DbContext.SaveChangesAsync();
-            await _publishEndpoint.Publish<IPrivateMessage>(new PrivateMessageEvent
-            {
-                ConversationId = privateConversation.Id,
-                MessageId = pm.Id,
-                RecipientId = recipientId,
-                SenderId = sender.Id
-            });
-            return pm;
-        }
-
-        public async Task<MapTalkie.DB.PrivateMessage> SendPrivateMessage(User recipient, User sender, string text)
-        {
-            var privateConv = await EnsurePrivateConversation(recipient.Id, sender.Id);
-            return await SendPrivateMessage(privateConv, sender, text);
-        }
-
-        public async Task<MapTalkie.DB.PrivateMessage> UpdatePrivateMessage(long id,
-            Action<MapTalkie.DB.PrivateMessage> updateFunction)
-        {
-            var pm = await GetPrivateMessageOrNull(id);
-
-            if (pm == null) throw new PrivateMessageNotFoundException(id);
-
-            updateFunction(pm);
-            var oldText = pm.Text;
-            pm.UpdatedAt = DateTime.UtcNow;
-            await DbContext.SaveChangesAsync();
-
-            if (pm.Text != oldText)
-                await _publishEndpoint.Publish<IPrivateMessageUpdate>(new PrivateMessageUpdateEvent
+                SenderId = userId1,
+                Receipts =
                 {
-                    ConversationId = pm.ConversationId,
-                    MessageId = pm.Id,
-                    SenderId = pm.SenderId,
-                    RecipientId = pm.RecipientId,
-                    NewText = pm.Text
-                });
-
-            return pm;
-        }
-
-        public async Task DeleteMessage(MapTalkie.DB.PrivateMessage message)
-        {
-            message.Available = false;
+                    new PrivateMessageReceipt
+                    {
+                        UserIdA = userId1,
+                        UserIdB = userId2,
+                        OutFlag = true
+                    },
+                    new PrivateMessageReceipt
+                    {
+                        UserIdA = userId2,
+                        UserIdB = userId1,
+                        OutFlag = false
+                    }
+                }
+            };
+            DbContext.Add(message);
             await DbContext.SaveChangesAsync();
-            await _publishEndpoint.Publish<IPrivateMessageDeleted>(new PrivateMessageDeletedEvent
+            await _publishEndpoint.Publish<IPrivateMessage>(new
             {
-                MessageId = message.Id,
-                SenderId = message.SenderId,
-                RecipientId = message.RecipientId,
-                ConversationId = message.ConversationId
+                Text = text,
+                SenderId = userId1,
+                RecipientId = userId2,
+                MessageId = message.Id
             });
+            return message;
         }
 
-        private async Task<PrivateConversation> EnsurePrivateConversation(string recipientId, string senderId)
+        public async Task<bool> DeleteMessageForUser(long messageId, string senderId, string recipientId)
         {
-            string higher = recipientId, lower = senderId;
-
-            if (string.CompareOrdinal(higher, lower) < 0)
-                (higher, lower) = (lower, higher);
-
-            var conv = await DbContext.PrivateConversations.Where(pc =>
-                    pc.UserHigherId == higher && pc.UserLowerId == lower)
+            var receipt = await DbContext.PrivateMessageReceipts
+                .Where(m => m.UserIdA == senderId && m.UserIdB == recipientId && m.MessageId == messageId)
                 .FirstOrDefaultAsync();
 
-            if (conv == null)
+            if (receipt == null)
+                return false;
+            DbContext.Remove(receipt);
+            await DbContext.SaveChangesAsync();
+            await _publishEndpoint.Publish<IPrivateMessageDeleted>(new
             {
-                conv = new PrivateConversation
-                {
-                    UserHigherId = higher,
-                    UserLowerId = lower
-                };
-                DbContext.Add(conv);
-                await DbContext.SaveChangesAsync();
-            }
-
-            return conv;
+                SenderId = receipt.OutFlag ? receipt.UserIdA : receipt.UserIdB,
+                RecipientId = receipt.OutFlag ? receipt.UserIdB : receipt.UserIdA,
+                receipt.MessageId
+            });
+            return true;
         }
     }
 }

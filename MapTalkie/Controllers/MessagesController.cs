@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.DB;
@@ -23,68 +22,39 @@ namespace MapTalkie.Controllers
             _messageService = messageService;
         }
 
-        [HttpPost("pm/conversation/{conversationId:int}")]
-        public async Task<ActionResult<PrivateMessageView>> SendPmToConversation([FromRoute] int conversationId,
-            [FromBody] NewMessage body)
-        {
-            var privateConv = await _messageService.GetPrivateConversationOrNull(conversationId);
-            if (privateConv == null)
-                return NotFound();
-            var sender = await RequireUser();
-            var message = await _messageService.SendPrivateMessage(privateConv, sender, body.Text);
-            return new PrivateMessageView
-            {
-                Id = message.Id,
-                SenderId = message.SenderId,
-                Text = message.Text,
-                Read = message.Read,
-                SenderName = sender.UserName
-            };
-        }
-
-        [HttpPost("pm/user/{userId}")]
-        public async Task<ActionResult<PrivateMessage>> SendPmToUser([FromRoute] string userId,
+        [HttpPost("pm/{userId}")]
+        public async Task<ActionResult<PrivateMessage>> SendPmToUser(
+            [FromRoute] string userId,
             [FromBody] NewMessage body)
         {
             var user = await RequireUser();
             var recipient = await _dbContext.Users.Where(u => u.Id == userId).FirstOrDefaultAsync();
             if (recipient == null)
                 return NotFound();
-            var message = await _messageService.SendPrivateMessage(recipient, user, body.Text);
+            var message = await _messageService.CreateMessage(recipient.Id, user.Id, body.Text);
             return message;
         }
 
         [HttpGet("pm")]
-        public async Task<ListResponse<PrivateConversationView>> GetConversations()
+        public async Task<ListResponse<ConversationView>> GetConversations()
         {
             var userId = RequireUserId();
-            var conversations = await _messageService.QueryPrivateConversationViews(userId).ToListAsync();
-            return new ListResponse<PrivateConversationView>(conversations);
+            var conversations = await _messageService.GetUserConversations(userId);
+            return new ListResponse<ConversationView>(conversations);
         }
 
-        [HttpGet("pm/conversation/{conversationId:int}")]
-        public async Task<ActionResult<ListResponse<PrivateMessageView>>> GetConversationMessages(
-            [FromRoute] int conversationId)
+        [HttpDelete("pm/{userId}/{messageId}")]
+        public async Task<IActionResult> DeleteMessage([FromRoute] string userId, [FromRoute] long messageId)
         {
-            var userId = RequireUserId();
-            var conversation = await _messageService.GetPrivateConversationOrNull(conversationId);
-            if (conversation == null || conversation.UserHigherId != userId && conversation.UserLowerId != userId)
-                return Unauthorized();
-            var messages = await _messageService.QueryPrivateMessageViews(conversationId).ToListAsync();
-            return new ListResponse<PrivateMessageView>(messages);
+            var currentUserId = RequireUserId();
+            if (await _messageService.DeleteMessageForUser(messageId, currentUserId, userId)) return Ok();
+
+            return NotFound($"Message {messageId} not found");
         }
 
         public class NewMessage
         {
             public string Text { get; set; } = string.Empty;
-        }
-
-        public class ConversationView
-        {
-            public int Id { get; set; }
-            public string UserId { get; set; }
-            public string LastMessage { get; set; }
-            public DateTime LastActive { get; set; }
         }
     }
 }

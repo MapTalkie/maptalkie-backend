@@ -19,7 +19,10 @@ namespace MapTalkie.Services.AuthService
             _authenticationSettings = authenticationSettings;
         }
 
-        public Task<IRefreshTokenResult> CreateRefreshToken(User user) => CreateRefreshToken(user.Id);
+        public Task<IRefreshTokenResult> CreateRefreshToken(User user)
+        {
+            return CreateRefreshToken(user.Id);
+        }
 
         public Task<RefreshToken?> FindRefreshToken(string token)
         {

@@ -33,7 +33,7 @@ namespace MapTalkie.Tests.Unit
             context.Database.EnsureCreated();
         }
 
-        public AppDbContext Context => ServiceProvider.GetService<AppDbContext>();
+        public AppDbContext Context => ServiceProvider.GetRequiredService<AppDbContext>();
 
         public void Dispose()
         {

@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using MapTalkie.DB;
 using MapTalkie.DB.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +20,7 @@ namespace MapTalkie.Controllers
         #region Get user
 
         [HttpGet]
-        public async Task<ActionResult<User>> GetCurrenUser()
+        public async Task<ActionResult<dynamic>> GetCurrenUser()
         {
             var user = await GetUser();
             if (user == null)
@@ -40,7 +39,7 @@ namespace MapTalkie.Controllers
         }
 
         [HttpPatch]
-        public async Task<ActionResult<User>> Update([FromBody] UpdateUserProfile body)
+        public async Task<ActionResult<dynamic>> Update([FromBody] UpdateUserProfile body)
         {
             var user = await GetUser();
             if (user == null)
@@ -51,7 +50,7 @@ namespace MapTalkie.Controllers
             if (body.PrivateLocation != null)
                 user.UsesPrivateLocation = (bool)body.PrivateLocation;
             await _context.SaveChangesAsync();
-            return user;
+            return new { };
         }
 
         #endregion

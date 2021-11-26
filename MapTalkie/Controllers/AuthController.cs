@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 namespace MapTalkie.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class AuthController : Controller
     {
         private readonly IOptions<AuthenticationSettings> _authenticationSettings;
@@ -106,11 +106,18 @@ namespace MapTalkie.Controllers
 
         [HttpPost("refresh")]
         public Task<ActionResult<LoginResponse>> RefreshToken([FromBody] RefreshTokenRequest body)
-            => RefreshTokenPrivate(body.RefreshToken, false);
+        {
+            return RefreshTokenPrivate(body.RefreshToken, false);
+        }
 
         [HttpPost("hybrid-refresh", Name = "AuthHybridTokenRefresh")]
-        public Task<ActionResult<LoginResponse>> HybridRefreshToken([FromBody] RefreshTokenRequest body)
-            => RefreshTokenPrivate(body.RefreshToken, true);
+        public async Task<ActionResult<LoginResponse>> HybridRefreshToken()
+        {
+            var token = HttpContext.Request.Cookies[_authenticationSettings.Value.RefreshTokenCookieName];
+            if (token == null)
+                return Unauthorized();
+            return await RefreshTokenPrivate(token, true);
+        }
 
         private async Task<ActionResult<LoginResponse>> RefreshTokenPrivate(string refreshToken, bool hybrid)
         {
@@ -163,12 +170,14 @@ namespace MapTalkie.Controllers
 
         public class SignUpRequest
         {
-            [Required, EmailAddress] public string Email { get; set; } = default!;
+            [Required] [EmailAddress] public string Email { get; set; } = default!;
 
-            [Required, MinLength(1), MaxLength(100)]
+            [Required]
+            [MinLength(1)]
+            [MaxLength(100)]
             public string UserName { get; set; } = string.Empty;
 
-            [Required, MinLength(8)] public string Password { get; set; } = default!;
+            [Required] [MinLength(8)] public string Password { get; set; } = default!;
         }
 
         public class SignUpResponse

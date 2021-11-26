@@ -11,8 +11,8 @@ namespace MapTalkie.Services.LiveEventsConsumers
     public class MassTransitConsoleHostedService :
         IHostedService
     {
-        readonly IBusControl _bus;
-        readonly ILogger _logger;
+        private readonly IBusControl _bus;
+        private readonly ILogger _logger;
 
         public MassTransitConsoleHostedService(IBusControl bus, ILoggerFactory loggerFactory)
         {

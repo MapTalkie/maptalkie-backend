@@ -29,6 +29,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\MapTalkie.Services.LiveEventsConsumers\MapTalkie.Services.LiveEventsConsumers.csproj"/>
         <ProjectReference Include="..\MapTalkie\MapTalkie.csproj"/>
     </ItemGroup>
 

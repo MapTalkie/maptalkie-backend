@@ -1,3 +1,5 @@
+using System.Runtime.Serialization;
+
 namespace MapTalkie.DB
 {
     public class FriendRequest
@@ -5,7 +7,7 @@ namespace MapTalkie.DB
         public string FromId { get; set; } = string.Empty;
         public string ToId { get; set; } = string.Empty;
 
-        public User To { get; set; } = default!;
-        public User From { get; set; } = default!;
+        [IgnoreDataMember] public User To { get; set; } = default!;
+        [IgnoreDataMember] public User From { get; set; } = default!;
     }
 }

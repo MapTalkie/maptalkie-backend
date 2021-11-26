@@ -24,6 +24,7 @@
         <PackageReference Include="NetTopologySuite" Version="2.4.0"/>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.1"/>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="5.0.10"/>
+        <PackageReference Include="NSwag.AspNetCore" Version="13.14.7"/>
         <PackageReference Include="Pidgin" Version="2.5.0"/>
         <PackageReference Include="ProjNET" Version="2.0.0"/>
         <PackageReference Include="Quartz.Extensions.Hosting" Version="3.3.3"/>

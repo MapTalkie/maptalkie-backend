@@ -4,10 +4,9 @@ using System.Threading.Tasks;
 using MapTalkie.DB;
 using MapTalkie.Services.PostService;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using NetTopologySuite.Geometries;
 using Xunit;
-using ServiceCollectionServiceExtensions = Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions;
-using ServiceProviderServiceExtensions = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions;
 
 namespace MapTalkie.Tests.Unit
 {
@@ -65,7 +64,7 @@ namespace MapTalkie.Tests.Unit
         public async Task TestPopularPostsTimeDecay()
         {
             var random = new Random();
-            var newestPosts = new List<string>();
+            var newestPosts = new List<long>();
             {
                 var old = DateTime.UtcNow - TimeSpan.FromDays(3);
 

@@ -21,21 +21,31 @@ namespace MapTalkie.Common.Utils
             Index = index;
         }
 
-        public static bool operator ==(AreaId z1, AreaId z2) => z1.Index == z2.Index && z1.Level == z2.Level;
-        public static bool operator !=(AreaId z1, AreaId z2) => !(z1 == z2);
+        public static bool operator ==(AreaId z1, AreaId z2)
+        {
+            return z1.Index == z2.Index && z1.Level == z2.Level;
+        }
+
+        public static bool operator !=(AreaId z1, AreaId z2)
+        {
+            return !(z1 == z2);
+        }
 
         public override int GetHashCode()
         {
             return HashCode.Combine(Level, Index);
         }
 
-        public override string ToString() => Id;
+        public override string ToString()
+        {
+            return Id;
+        }
 
         public AreaId? Parent()
         {
             if (Level == 0)
                 return null;
-            int newIndex = CellX / 2 + CellY / 2 * (1 << (Level - 1));
+            var newIndex = CellX / 2 + CellY / 2 * (1 << (Level - 1));
             return new AreaId(Level - 1, newIndex);
         }
 
@@ -53,7 +63,10 @@ namespace MapTalkie.Common.Utils
             return track;
         }
 
-        public AreaId ParentOrSelf() => Parent() ?? this;
+        public AreaId ParentOrSelf()
+        {
+            return Parent() ?? this;
+        }
 
         [IgnoreDataMember] public string Id => $"{Level}:{Index}";
 
@@ -164,10 +177,14 @@ namespace MapTalkie.Common.Utils
         }
 
         public static IEnumerable<AreaId> AllFromPoint(Point point, double minAreaSize)
-            => AllFromCoordinate3857(To3857OrThrow(point));
+        {
+            return AllFromCoordinate3857(To3857OrThrow(point));
+        }
 
         public static AreaId FromPoint(Point point, int? level = null)
-            => FromCoordinate3857(To3857OrThrow(point), level);
+        {
+            return FromCoordinate3857(To3857OrThrow(point), level);
+        }
 
         public static AreaId FromCoordinate3857(Coordinate coordinate, int? level = null)
         {
@@ -192,7 +209,9 @@ namespace MapTalkie.Common.Utils
         }
 
         public static AreaId FromPolygon(Polygon polygon)
-            => FromEnvelope3857(GetMercatorEnvelope(polygon));
+        {
+            return FromEnvelope3857(GetMercatorEnvelope(polygon));
+        }
 
         private static Coordinate To3857OrThrow(Point point)
         {
@@ -219,7 +238,7 @@ namespace MapTalkie.Common.Utils
                 new[] { envelope.MaxX, envelope.MaxY },
                 new[] { envelope.MaxX, envelope.MinY },
                 new[] { envelope.MinX, envelope.MinY },
-                new[] { envelope.MinX, envelope.MaxY },
+                new[] { envelope.MinX, envelope.MaxY }
             };
             points = MapConvert.LatLonToMercatorTransform.TransformList(points);
             var maxX = points.Max(p => p[0]);

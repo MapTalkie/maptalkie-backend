@@ -1,16 +1,22 @@
+using System;
+using System.IO;
 using MapTalkie.DB.Context;
 using MapTalkie.Hubs;
+using MapTalkie.Services.LiveEventsConsumers.Consumers.PostLikedConsumer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace MapTalkie
+namespace MapTalkie.Tests.Integration.Fixtures
 {
-    public class Startup
+    public class TestStartup
     {
-        public Startup(IConfiguration configuration, IWebHostEnvironment env)
+        private readonly string _databaseConnectionString = DBContstants.DatabaseConnectionString(
+            $"maptalkie_integration_tests_{Guid.NewGuid():N}");
+
+        public TestStartup(IConfiguration configuration, IWebHostEnvironment env)
         {
             Configuration = configuration;
             Env = env;
@@ -22,12 +28,22 @@ namespace MapTalkie
 
         public void ConfigureServices(IServiceCollection services)
         {
+            string a = Directory.GetCurrentDirectory();
+            services.AddMvcCore().AddApplicationPart(typeof(Startup).Assembly);
+
             services.ConfigureAll(Configuration);
             services.AddAppControllers();
-            services.AddAppMassTransit(Configuration);
+            services.AddAppMassTransit(Configuration, options =>
+            {
+                options.UseInMemory = true;
+                options.ConfigureMassTransitBus = x =>
+                {
+                    x.AddConsumer<PostLikedConsumer>(typeof(PostLikedConsumerDefinition));
+                };
+            });
             services.AddAppServices();
             services.AddAppCors(Env);
-            services.AddAppDbContext(Configuration);
+            services.AddAppDbContext(() => _databaseConnectionString);
             services.AddAppSignalR();
             // services.AddAppQuartz();
             services.AddMemoryCache();

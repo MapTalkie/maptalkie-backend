@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MapTalkie.Common.Messages;
 using MapTalkie.Common.Messages.Posts;
 using MapTalkie.Common.Utils;
 using MapTalkie.DB.Context;
-using MapTalkie.Services.LiveEventsConsumers.MessagesImpl;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,10 +25,7 @@ namespace MapTalkie.Services.LiveEventsConsumers.Consumers.PostLikedConsumer
             foreach (var itemContext in context.Message)
             {
                 var msg = itemContext.Message;
-                if (!diff.ContainsKey(msg.PostId))
-                {
-                    diff[msg.PostId] = new Engagement();
-                }
+                if (!diff.ContainsKey(msg.PostId)) diff[msg.PostId] = new Engagement();
 
                 switch (msg.Type)
                 {
@@ -61,15 +58,14 @@ namespace MapTalkie.Services.LiveEventsConsumers.Consumers.PostLikedConsumer
                     p.Id, p.CreatedAt, p.Location,
                     Likes = p.CachedLikesCount + p.Likes.Count(l => l.CreatedAt > p.CacheUpdatedAt),
                     Shares = p.CachedSharesCount + p.Shares.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Comments = p.CachedCommentsCount + p.Comments.Count(l => l.CreatedAt > p.CacheUpdatedAt),
+                    Comments = p.CachedCommentsCount + p.Comments.Count(l => l.CreatedAt > p.CacheUpdatedAt)
                 })
                 .ToListAsync();
 
-            var messages = new List<AccumulatedEngagementEvent>(dbEngagements.Count);
             foreach (var dbEngagement in dbEngagements)
             {
                 var engagement = diff[dbEngagement.Id];
-                messages.Add(new AccumulatedEngagementEvent
+                await context.Publish<IAccumulatedEngagementEvent>(new
                 {
                     PostId = dbEngagement.Id,
                     Likes = dbEngagement.Likes + engagement.Likes,
@@ -78,8 +74,6 @@ namespace MapTalkie.Services.LiveEventsConsumers.Consumers.PostLikedConsumer
                     LocationDescriptor = (LocationDescriptor)dbEngagement.Location
                 });
             }
-
-            await context.PublishBatch(messages);
         }
 
         private class Engagement

@@ -12,10 +12,9 @@ namespace MapTalkie.Tests.Unit
         public TestsBase()
         {
             ServiceCollection = new ServiceCollection();
-            ServiceCollection.
-                // временный (может быть) хак
-                ServiceCollection.AddSingleton(
-                    typeof(IPublishEndpoint), new Mock<IPublishEndpoint>().Object);
+            // временный (может быть) хак
+            ServiceCollection.AddSingleton(
+                typeof(IPublishEndpoint), new Mock<IPublishEndpoint>().Object);
             ServiceCollection.AddLogging();
             ServiceCollection.AddMemoryCache();
         }

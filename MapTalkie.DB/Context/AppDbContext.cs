@@ -1,4 +1,4 @@
-using MapTalkie.DB.ValueGenerators;
+using MapTalkie.DB.Utils;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -25,7 +25,9 @@ namespace MapTalkie.DB.Context
         public virtual DbSet<CommentLike> PostCommentLikes { get; set; } = default!;
         public virtual DbSet<RefreshToken> RefreshTokens { get; set; } = default!;
         public virtual DbSet<PrivateMessage> PrivateMessages { get; set; } = default!;
-        public virtual DbSet<PrivateConversation> PrivateConversations { get; set; } = default!;
+        public virtual DbSet<PrivateMessageReceipt> PrivateMessageReceipts { get; set; } = default!;
+        public virtual DbSet<PrivateConversationParticipant> PrivateConversationParticipants { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -54,6 +56,8 @@ namespace MapTalkie.DB.Context
             builder.Entity<FriendRequest>().HasKey(fr => new { fr.FromId, fr.ToId });
             builder.Entity<CommentLike>().HasKey(r => new { r.UserId, r.CommentId });
             builder.Entity<PostLike>().HasKey(r => new { r.UserId, r.PostId });
+            builder.Entity<PrivateMessageReceipt>().HasKey(r => new { r.UserIdA, r.UserIdB, r.MessageId });
+            builder.Entity<PrivateConversationParticipant>().HasKey(r => new { r.SenderId, r.RecipientId });
 
             builder.Entity<PostComment>()
                 .HasMany(c => c.Comments)
