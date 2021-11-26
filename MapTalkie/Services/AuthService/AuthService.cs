@@ -1,10 +1,10 @@
 using System;
-using System.Data.Entity;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.Configuration;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace MapTalkie.Services.AuthService

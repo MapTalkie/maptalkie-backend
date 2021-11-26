@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using MapTalkie.Tests.Integration.Fixtures;
+using Microsoft.Net.Http.Headers;
 using Xunit;
 
 namespace MapTalkie.Tests.Integration
@@ -97,8 +98,21 @@ namespace MapTalkie.Tests.Integration
                 password = PASSWORD
             }));
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            response = await client.PostAsync("/api/auth/hybrid-refresh", null);
+
+            var cookies = response.Headers.GetValues("Set-Cookie")
+                .Select(v => SetCookieHeaderValue.Parse(v))
+                .Select(c => new CookieHeaderValue(c.Name, c.Value));
+            response = await _serverFixture.Server
+                .CreateRequest("/api/auth/hybrid-refresh")
+                .AddHeader(HeaderNames.Cookie, string.Join(";", cookies))
+                .PostAsync();
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var data = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+            Assert.NotNull(data);
+            Assert.Contains("token", data!.Keys);
+            Assert.Contains("refreshToken", data!.Keys);
+            Assert.Null(data["refreshToken"]);
+            Assert.NotNull(data["token"]);
         }
     }
 }

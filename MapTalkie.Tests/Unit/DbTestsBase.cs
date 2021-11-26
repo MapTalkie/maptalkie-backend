@@ -1,4 +1,5 @@
 using System;
+using IdGen;
 using MapTalkie.DB.Context;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ namespace MapTalkie.Tests.Unit
 
             ServiceCollection.AddSingleton(env.Object);
 
+            ServiceCollection.AddSingleton(new IdGenerator(0));
             ServiceCollection.AddDbContext<AppDbContext>(options =>
             {
                 options.UseNpgsql(

@@ -1,4 +1,3 @@
-using System.Data.Entity;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
@@ -7,6 +6,7 @@ using MapTalkie.DB;
 using MapTalkie.DB.Context;
 using MapTalkie.Utils.ErrorHandling;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Controllers
 {
