@@ -1,14 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Common.Utils;
 using MapTalkie.DB;
-using MapTalkie.Services.PostService;
+using MapTalkie.DB.Context;
+using MapTalkie.Domain.Utils;
+using MapTalkie.Services.PopularityProvider;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 
 namespace MapTalkie.Hubs
@@ -27,13 +25,17 @@ namespace MapTalkie.Hubs
         public static string PostsUpdate = "Posts";
         public static string PostEngagement = "Engagement";
 
-        private readonly IPostService _postService;
+        private readonly AppDbContext _context;
+        private readonly IPopularityProvider _popularityProvider;
+
 
         public UserHub(
-            IPostService postService,
+            IPopularityProvider popularityProvider,
+            AppDbContext context,
             UserManager<User> userManager) : base(userManager)
         {
-            _postService = postService;
+            _context = context;
+            _popularityProvider = popularityProvider;
         }
 
         #region PrivateMessages
@@ -84,7 +86,7 @@ namespace MapTalkie.Hubs
                     new Coordinate(southWest.X, southWest.Y),
                     new Coordinate(southWest.X, northEast.Y),
                     new Coordinate(northEast.X, northEast.Y)
-                }));
+                })) { SRID = 3857 };
             var oldPoly = _subscriptionPolygon;
             var oldType = _subscriptionType;
             _subscriptionPolygon = polygon;
@@ -102,37 +104,7 @@ namespace MapTalkie.Hubs
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,
                     MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + AreaId.FromPolygon(polygon));
-
-                await SendPostsInCurrentArea();
             }
-        }
-
-        private async Task SendPostsInCurrentArea()
-        {
-            IQueryable<Post> queryable;
-            switch (_subscriptionType)
-            {
-                case SubscriptionType.Latest:
-                    queryable = _postService.QueryPosts(_subscriptionPolygon)
-                        .OrderByDescending(p => p.CreatedAt);
-                    break;
-                case SubscriptionType.Popular:
-                    queryable = _postService.QueryPopularPosts(_subscriptionPolygon);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-
-            var views = await queryable.Select(p => new
-            {
-                p.Id, p.Location, p.CreatedAt,
-                p.UserId,
-                p.User.UserName,
-                Likes = p.Likes.Count,
-                Shares = 0,
-                Comments = p.Comments.Count
-            }).Take(100).ToListAsync();
-            await Clients.Caller.SendAsync("Posts", views, _subscriptionPolygon, _subscriptionType);
         }
 
         #endregion
@@ -151,12 +123,6 @@ namespace MapTalkie.Hubs
                 await Groups.AddToGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
 
             _trackingPosts = set;
-
-            var postPops = await _postService
-                .QueryPopularity(availableFor: await GetUser())
-                .Where(p => postIds.Contains(p.PostId))
-                .ToListAsync();
-            await Clients.Caller.SendAsync("Engagements", postPops);
         }
 
         public async Task StopTrackingPosts()
@@ -164,6 +130,12 @@ namespace MapTalkie.Hubs
             foreach (var postId in _trackingPosts)
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
         }
+
+        #endregion
+
+        #region Data types
+
+        // TODO
 
         #endregion
     }

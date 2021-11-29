@@ -1,5 +1,5 @@
 using System;
-using MapTalkie.Utils.JsonConverters;
+using MapTalkie.Domain.Utils.JsonConverters;
 using Newtonsoft.Json;
 
 namespace MapTalkie.Services.MessageService

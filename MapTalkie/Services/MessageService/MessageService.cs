@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Common.Messages.PrivateMessages;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
+using MapTalkie.Domain.Messages.PrivateMessages;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using PrivateMessage = MapTalkie.Domain.Messages.PrivateMessages.PrivateMessage;
 
 namespace MapTalkie.Services.MessageService
 {
@@ -75,9 +76,9 @@ namespace MapTalkie.Services.MessageService
             return await conversations.ToListAsync();
         }
 
-        public async Task<PrivateMessage> CreateMessage(string userId1, string userId2, string text)
+        public async Task<DB.PrivateMessage> CreateMessage(string userId1, string userId2, string text)
         {
-            var message = new PrivateMessage
+            var message = new DB.PrivateMessage
             {
                 Text = text,
                 SenderId = userId1,
@@ -99,7 +100,7 @@ namespace MapTalkie.Services.MessageService
             };
             DbContext.Add(message);
             await DbContext.SaveChangesAsync();
-            await _publishEndpoint.Publish<IPrivateMessage>(new
+            await _publishEndpoint.Publish<PrivateMessage>(new()
             {
                 Text = text,
                 SenderId = userId1,
@@ -119,11 +120,11 @@ namespace MapTalkie.Services.MessageService
                 return false;
             DbContext.Remove(receipt);
             await DbContext.SaveChangesAsync();
-            await _publishEndpoint.Publish<IPrivateMessageDeleted>(new
+            await _publishEndpoint.Publish<PrivateMessageDeleted>(new()
             {
                 SenderId = receipt.OutFlag ? receipt.UserIdA : receipt.UserIdB,
                 RecipientId = receipt.OutFlag ? receipt.UserIdB : receipt.UserIdA,
-                receipt.MessageId
+                MessageId = receipt.MessageId
             });
             return true;
         }

@@ -1,10 +1,9 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
-using MapTalkie.Common.Messages.Email;
 using MapTalkie.Configuration;
 using MapTalkie.DB;
-using MapTalkie.MessagesImpl;
+using MapTalkie.Domain.Messages.User;
 using MapTalkie.Services.AuthService;
 using MapTalkie.Services.TokenService;
 using MassTransit;
@@ -142,13 +141,7 @@ namespace MapTalkie.Controllers
                 Email = request.Email,
                 EmailConfirmed = false
             };
-            await publishEndpoint.Publish<IEmailVerification>(new EmailVerification
-            {
-                UserId = user.Id,
-                Email = request.Email,
-                UserName = request.UserName,
-                VerificationType = VerificationType.AccountCreated
-            });
+            await publishEndpoint.Publish<InitialEmailVerification>(new(request.Email, user.Id, user.UserName));
             var result = await manager.CreateAsync(user, request.Password);
             if (!result.Succeeded)
                 return BadRequest(result.Errors);

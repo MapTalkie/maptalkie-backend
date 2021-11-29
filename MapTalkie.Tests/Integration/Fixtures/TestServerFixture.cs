@@ -1,6 +1,9 @@
 using System;
+using System.Threading.Tasks;
+using MapTalkie.DB;
 using MapTalkie.DB.Context;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +22,11 @@ namespace MapTalkie.Tests.Integration.Fixtures
                 .UseEnvironment("Testing");
 
             Server = new TestServer(webHost);
+            InitServer().Wait();
         }
+
+        public string TestUsername { get; private set; }
+        public string TestPassword { get; } = "Password01$";
 
         public TestServer Server { get; private set; }
         public string DatabaseName { get; private set; }
@@ -31,6 +38,17 @@ namespace MapTalkie.Tests.Integration.Fixtures
             context.Database.EnsureDeleted();
 
             Server.Dispose();
+        }
+
+        private async Task InitServer()
+        {
+            TestUsername = "Test_" + Guid.NewGuid().ToString("N");
+            await Server.Services.GetRequiredService<UserManager<User>>().CreateAsync(new User
+            {
+                UserName = TestUsername,
+                Email = $"{TestUsername}@mail.org",
+                EmailConfirmed = true
+            }, TestPassword);
         }
     }
 

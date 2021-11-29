@@ -2,7 +2,8 @@ using System;
 using System.IO;
 using MapTalkie.DB.Context;
 using MapTalkie.Hubs;
-using MapTalkie.Services.LiveEventsConsumers.Consumers.PostLikedConsumer;
+using MapTalkie.Services.Posts.Consumers.PostCreatedConsumer;
+using MapTalkie.Services.Posts.Consumers.PostLikedConsumer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +40,7 @@ namespace MapTalkie.Tests.Integration.Fixtures
                 options.ConfigureMassTransitBus = x =>
                 {
                     x.AddConsumer<PostLikedConsumer>(typeof(PostLikedConsumerDefinition));
+                    x.AddConsumer<PostCreatedConsumer>(typeof(PostCreatedConsumerDefinition));
                 };
             });
             services.AddAppServices();

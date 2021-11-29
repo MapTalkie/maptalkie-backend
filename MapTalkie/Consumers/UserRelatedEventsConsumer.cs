@@ -1,8 +1,8 @@
 using System.Linq;
 using System.Threading.Tasks;
-using MapTalkie.Common.Messages;
-using MapTalkie.Common.Messages.Posts;
-using MapTalkie.Common.Messages.PrivateMessages;
+using MapTalkie.Domain.Messages.Posts;
+using MapTalkie.Domain.Messages.PrivateMessages;
+using MapTalkie.Domain.Utils;
 using MapTalkie.Hubs;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
@@ -11,9 +11,9 @@ namespace MapTalkie.Consumers
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public class UserRelatedEventsConsumer :
-        IConsumer<IAccumulatedEngagementEvent>,
-        IConsumer<IGeoUpdate>,
-        IConsumer<IPrivateMessageBase>
+        IConsumer<EngagementUpdate>,
+        IConsumer<GeoUpdates>,
+        IConsumer<PrivateMessageBase>
     {
         private readonly IHubContext<UserHub> _hubContext;
 
@@ -22,45 +22,44 @@ namespace MapTalkie.Consumers
             _hubContext = hubContext;
         }
 
-        public Task Consume(ConsumeContext<IAccumulatedEngagementEvent> context)
+        public Task Consume(ConsumeContext<EngagementUpdate> context)
         {
             return _hubContext.Clients.Group(MapTalkieGroups.PostUpdatesPrefix + context.Message.PostId)
                 .SendAsync(UserHub.PostEngagement, new
                 {
-                    Id = context.Message.PostId,
+                    Id = context.Message.PostId.ToString(),
                     context.Message.Comments,
                     context.Message.Likes,
                     context.Message.Shares,
-                    context.Message.LocationDescriptor.Latitude,
-                    context.Message.LocationDescriptor.Longitude
+                    context.Message.Location
                 });
         }
 
-        public async Task Consume(ConsumeContext<IGeoUpdate> context)
+        public async Task Consume(ConsumeContext<GeoUpdates> context)
         {
             foreach (var update in context.Message.Updates)
                 await _hubContext.Clients
                     .Group(MapTalkieGroups.AreaUpdatesPrefix + UserHub.SubscriptionType.Latest + update.Id)
-                    .SendAsync("NewPosts", new
+                    .SendAsync(UserHub.PostsUpdate, new
                     {
                         Posts = update.NewPosts.Select(p => new
                         {
                             Id = p.PostId,
                             p.UserId,
-                            p.Location.Latitude,
-                            p.Location.Longitude
-                        })
+                            Location = MapConvert.ToLatLon(p.Location)
+                        }).ToList(),
+                        Type = UserHub.SubscriptionType.Latest
                     });
         }
 
-        public async Task Consume(ConsumeContext<IPrivateMessageBase> context)
+        public async Task Consume(ConsumeContext<PrivateMessageBase> context)
         {
             var groupProxy =
                 _hubContext.Clients.Group(MapTalkieGroups.Conversation(context.Message.SenderId,
                     context.Message.RecipientId));
             switch (context.Message)
             {
-                case IPrivateMessage privateMessage:
+                case PrivateMessage privateMessage:
                     await groupProxy.SendAsync(UserHub.DirectMessage, new
                     {
                         Id = privateMessage.MessageId,
@@ -69,7 +68,7 @@ namespace MapTalkie.Consumers
                         privateMessage.SenderId
                     });
                     break;
-                case IPrivateMessageDeleted privateMessageDeleted:
+                case PrivateMessageDeleted privateMessageDeleted:
                     await groupProxy.SendAsync(UserHub.DirectMessageDeleted, new
                     {
                         privateMessageDeleted.MessageId,
@@ -77,7 +76,6 @@ namespace MapTalkie.Consumers
                     });
                     break;
             }
-            // TODO событие Update?
         }
     }
 }

@@ -5,14 +5,13 @@ using MapTalkie.Configuration;
 using MapTalkie.Consumers;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
+using MapTalkie.Domain.Utils.JsonConverters;
 using MapTalkie.Services.AuthService;
-using MapTalkie.Services.CommentService;
 using MapTalkie.Services.FriendshipService;
 using MapTalkie.Services.MessageService;
-using MapTalkie.Services.PostService;
+using MapTalkie.Services.PopularityProvider;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
-using MapTalkie.Utils.JsonConverters;
 using MassTransit;
 using MassTransit.ExtensionsDependencyInjectionIntegration;
 using MassTransit.RabbitMqTransport;
@@ -33,12 +32,11 @@ namespace MapTalkie
         public static void AddAppServices(this IServiceCollection services)
         {
             services
-                .AddScoped<ICommentService, CommentService>()
                 .AddScoped<IAuthService, AuthService>()
+                .AddScoped<IPopularityProvider, PopularityProvider>()
                 .AddScoped<IFriendshipService, FriendshipService>()
                 .AddScoped<ITokenService, TokenService>()
-                .AddScoped<IMessageService, MessageService>()
-                .AddScoped<IPostService, PostService>();
+                .AddScoped<IMessageService, MessageService>();
         }
 
         public static void ConfigureAll(this IServiceCollection services, IConfiguration configuration)
@@ -124,7 +122,7 @@ namespace MapTalkie
         private static void AddJsonConverters(IList<JsonConverter> converters)
         {
             converters.Add(new PolygonJsonConverter());
-            converters.Add(new PointJsonConverter());
+            converters.Add(new LatLonPointJsonConverter());
         }
 
         public static void AddAppQuartz(this IServiceCollection services)
@@ -164,12 +162,16 @@ namespace MapTalkie
             {
                 options.AddConsumer<UserRelatedEventsConsumer>();
 
-                if (cfg.ConfigureMassTransitBus != null)
-                    cfg.ConfigureMassTransitBus(options);
+                cfg.ConfigureMassTransitBus?.Invoke(options);
 
                 if (cfg.UseInMemory)
                 {
-                    options.UsingInMemory();
+                    options.UsingInMemory((context, cfg) =>
+                    {
+                        cfg.TransportConcurrencyLimit = 100;
+
+                        cfg.ConfigureEndpoints(context);
+                    });
                 }
                 else if (cfg.ConfigureRabbitMq == null)
                 {

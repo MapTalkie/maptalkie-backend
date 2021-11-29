@@ -8,7 +8,7 @@ namespace MapTalkie.Configuration
     {
         public string Issuer { get; set; } = string.Empty;
 
-        public TimeSpan TokenLifeTime { get; set; } = TimeSpan.FromMinutes(45);
+        public TimeSpan TokenLifeTime { get; set; } = TimeSpan.FromDays(2);
 
         public TimeSpan RefreshTokenLifeTime { get; set; } = TimeSpan.FromDays(14);
 

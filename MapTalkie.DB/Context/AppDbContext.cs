@@ -2,12 +2,24 @@ using MapTalkie.DB.Utils;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MapTalkie.DB.Context
 {
     public class AppDbContext : IdentityDbContext<User, Role, string>
     {
         private readonly ILoggerFactory _loggerFactory;
+
+        public AppDbContext()
+        {
+            _loggerFactory = new NullLoggerFactory();
+        }
+
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
+        {
+            _loggerFactory = new NullLoggerFactory();
+        }
 
         public AppDbContext(
             DbContextOptions<AppDbContext> options,

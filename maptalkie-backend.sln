@@ -6,13 +6,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Tests", "MapTalki
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.DB", "MapTalkie.DB\MapTalkie.DB.csproj", "{96376A48-3877-44C2-980C-661F1B5D6A75}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Common", "MapTalkie.Common\MapTalkie.Common.csproj", "{1857148C-0B10-4F87-A670-B7FAA5491192}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Domain", "MapTalkie.Domain\MapTalkie.Domain.csproj", "{1857148C-0B10-4F87-A670-B7FAA5491192}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Services.LiveEventsConsumers", "MapTalkie.Services.LiveEventsConsumers\MapTalkie.Services.LiveEventsConsumers.csproj", "{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Services.Posts", "MapTalkie.Services.Posts\MapTalkie.Services.Posts.csproj", "{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{C0BFE8AF-69CC-4968-BC04-4EEE21C2EF08}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{1B8DCF74-8E5C-4A03-8B99-CB1DFBD39043}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Services.Posts.Messages", "MapTalkie.Services.Posts.Messages\MapTalkie.Services.Posts.Messages.csproj", "{9EA8769B-380A-46ED-942F-0AEF84D18242}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,9 +42,14 @@ Global
 		{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{44A63851-6EB0-4D3F-B22A-08D46DFC0F50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{24300589-BBE9-4242-8CBF-E4AFAEC7C344} = {C0BFE8AF-69CC-4968-BC04-4EEE21C2EF08}
 		{44A63851-6EB0-4D3F-B22A-08D46DFC0F50} = {1B8DCF74-8E5C-4A03-8B99-CB1DFBD39043}
+		{9EA8769B-380A-46ED-942F-0AEF84D18242} = {1B8DCF74-8E5C-4A03-8B99-CB1DFBD39043}
 	EndGlobalSection
 EndGlobal
