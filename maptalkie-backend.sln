@@ -16,6 +16,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{1B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Services.Posts.Messages", "MapTalkie.Services.Posts.Messages\MapTalkie.Services.Posts.Messages.csproj", "{9EA8769B-380A-46ED-942F-0AEF84D18242}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapTalkie.Services.Posts.DatabaseCli", "MapTalkie.Services.Posts.DatabaseCli\MapTalkie.Services.Posts.DatabaseCli.csproj", "{88C72724-C147-41F7-9D19-E5379502F042}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,10 +48,15 @@ Global
 		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9EA8769B-380A-46ED-942F-0AEF84D18242}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88C72724-C147-41F7-9D19-E5379502F042}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88C72724-C147-41F7-9D19-E5379502F042}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88C72724-C147-41F7-9D19-E5379502F042}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88C72724-C147-41F7-9D19-E5379502F042}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{24300589-BBE9-4242-8CBF-E4AFAEC7C344} = {C0BFE8AF-69CC-4968-BC04-4EEE21C2EF08}
 		{44A63851-6EB0-4D3F-B22A-08D46DFC0F50} = {1B8DCF74-8E5C-4A03-8B99-CB1DFBD39043}
 		{9EA8769B-380A-46ED-942F-0AEF84D18242} = {1B8DCF74-8E5C-4A03-8B99-CB1DFBD39043}
+		{88C72724-C147-41F7-9D19-E5379502F042} = {1B8DCF74-8E5C-4A03-8B99-CB1DFBD39043}
 	EndGlobalSection
 EndGlobal

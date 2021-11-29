@@ -1,18 +1,25 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:5.0 AS base
+﻿FROM mcr.microsoft.com/dotnet/runtime:6.0 AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["MapTalkie.Services.LiveEventsConsumers/MapTalkie.Services.LiveEventsConsumers.csproj", "MapTalkie.Services.LiveEventsConsumers/"]
-RUN dotnet restore "MapTalkie.Services.LiveEventsConsumers/MapTalkie.Services.LiveEventsConsumers.csproj"
-COPY . .
-WORKDIR "/src/MapTalkie.Services.LiveEventsConsumers"
-RUN dotnet build "MapTalkie.Services.LiveEventsConsumers.csproj" -c Release -o /app/build
+COPY ./MapTalkie.Services.Posts/appsettings* MapTalkie.Services.Posts/
+
+COPY ./MapTalkie.Services.Posts/MapTalkie.Services.Posts.csproj MapTalkie.Services.Posts/
+COPY ./MapTalkie.Services.Posts.Messages/MapTalkie.Services.Posts.Messages.csproj MapTalkie.Services.Posts.Messages/
+RUN dotnet restore "MapTalkie.Services.Posts/MapTalkie.Services.Posts.csproj"
+RUN dotnet restore "MapTalkie.Services.Posts.Messages/MapTalkie.Services.Posts.Messages.csproj"
+COPY ./MapTalkie.Services.Posts ./MapTalkie.Services.Posts
+COPY ./MapTalkie.Services.Posts.Messages ./MapTalkie.Services.Posts.Messages
+WORKDIR "/src/MapTalkie.Services.Posts"
+RUN dotnet build "MapTalkie.Services.Posts.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "MapTalkie.Services.LiveEventsConsumers.csproj" -c Release -o /app/publish
+RUN dotnet publish "MapTalkie.Services.Posts.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "MapTalkie.Services.LiveEventsConsumers.dll"]
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:80
+ENTRYPOINT ["dotnet", "MapTalkie.Services.Posts.dll"]
