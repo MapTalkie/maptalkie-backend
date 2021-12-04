@@ -1,4 +1,6 @@
-﻿using MapTalkie.DB.Context;
+﻿using System;
+using MapTalkie.DB.Context;
+using MapTalkie.Services.Posts.Consumers.PostCreatedConsumer;
 using MapTalkie.Services.Posts.Consumers.PostLikedConsumer;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +20,7 @@ namespace MapTalkie.Services.Posts
                     config.AddJsonFile("appsettings.json", true);
                     config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", true);
                     config.AddEnvironmentVariables();
-                    if (args != null)
-                        config.AddCommandLine(args);
+                    config.AddCommandLine(args);
                 })
                 .ConfigureServices((context, services) =>
                 {
@@ -29,11 +30,19 @@ namespace MapTalkie.Services.Posts
                             x => x.UseNetTopologySuite());
                     });
 
+                    var schedulerEndpoint = new Uri("queue:scheduler");
+
                     services.AddMassTransit(x =>
                     {
                         x.AddConsumer<PostLikedConsumer>(typeof(PostLikedConsumerDefinition));
+                        x.AddConsumer<PostCreatedConsumer>(typeof(PostCreatedConsumerDefinition));
+                        x.AddMessageScheduler(schedulerEndpoint);
 
-                        x.UsingRabbitMq((busContext, cfg) => { cfg.ConfigureEndpoints(busContext); });
+                        x.UsingRabbitMq((busContext, cfg) =>
+                        {
+                            cfg.UseMessageScheduler(schedulerEndpoint);
+                            cfg.ConfigureEndpoints(busContext);
+                        });
                     });
                     services.AddHostedService<MassTransitConsoleHostedService>();
                 });

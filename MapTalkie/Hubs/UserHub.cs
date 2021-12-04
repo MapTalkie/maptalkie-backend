@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
 using MapTalkie.Domain.Utils;
-using MapTalkie.Services.PopularityProvider;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using NetTopologySuite.Geometries;
@@ -26,16 +25,13 @@ namespace MapTalkie.Hubs
         public static string PostEngagement = "Engagement";
 
         private readonly AppDbContext _context;
-        private readonly IPopularityProvider _popularityProvider;
 
 
         public UserHub(
-            IPopularityProvider popularityProvider,
             AppDbContext context,
             UserManager<User> userManager) : base(userManager)
         {
             _context = context;
-            _popularityProvider = popularityProvider;
         }
 
         #region PrivateMessages

@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MapTalkie.DB;
-using MapTalkie.Services.PostService;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NetTopologySuite.Geometries;
 using Xunit;
@@ -14,11 +12,10 @@ namespace MapTalkie.Tests.Unit
     {
         public PostsTests()
         {
-            ServiceCollectionServiceExtensions.AddScoped<IPostService, PostService>(ServiceCollection);
+            ServiceCollection.AddScoped<IPostService, PostService>();
         }
 
-        private IPostService PostService =>
-            ServiceProviderServiceExtensions.GetRequiredService<IPostService>(ServiceProvider);
+        private IPostService PostService => ServiceProvider.GetRequiredService<IPostService>();
 
         [Fact]
         public async Task TestNewPost()

@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
 using MapTalkie.Domain.Messages.Posts;
+using MapTalkie.Domain.Popularity;
 using MapTalkie.Domain.Utils;
 using MapTalkie.Domain.Utils.JsonConverters;
-using MapTalkie.Services.PopularityProvider;
 using MapTalkie.Utils;
+using MapTalkie.Views;
 using MassTransit;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
@@ -21,56 +21,27 @@ namespace MapTalkie.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class PostsController : AuthorizedController
     {
         private readonly AppDbContext _context;
         private readonly IPublishEndpoint _publishEndpoint;
 
-        public PostsController(AppDbContext dbContext, IPublishEndpoint publishEndpoint) : base(dbContext)
+        public PostsController(
+            AppDbContext context,
+            IPublishEndpoint publishEndpoint) : base(context)
         {
-            _context = dbContext;
+            _context = context;
             _publishEndpoint = publishEndpoint;
         }
 
         #region Получить пост(ы)
-
-        public record PostView
-        {
-            public string UserId { get; set; } = string.Empty;
-            public string UserName { get; set; } = string.Empty;
-            public string Avatar { get; set; } = string.Empty;
-
-            [JsonConverter(typeof(IdToStringConverter))]
-            public long Id { get; set; }
-
-            public int Comments { get; set; }
-            public int Shares { get; set; }
-            public int Likes { get; set; }
-            public double Rank { get; set; }
-            public DateTime CreatedAt { get; set; }
-            public string Text { get; set; } = string.Empty;
-            public Point Location { get; set; } = new(0, 0) { SRID = 4326 };
-        }
 
         [HttpGet("{postId}", Name = "GetPost")]
         public async Task<ActionResult<PostView>> GetPost([FromRoute] long postId)
         {
             var post = await _context.Posts
                 .Where(p => p.Available && p.Id == postId)
-                .Select(p => new PostView
-                {
-                    Id = p.Id,
-                    Text = p.Text,
-                    CreatedAt = p.CreatedAt,
-                    UserId = p.UserId,
-                    UserName = p.User.UserName,
-                    Avatar = "",
-                    Location = p.Location,
-                    Likes = p.CachedLikesCount + p.Likes.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Shares = p.CachedSharesCount + p.Shares.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Comments = p.CachedCommentsCount + p.Comments.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                })
+                .Select(p => new PostView(p))
                 .FirstOrDefaultAsync();
             if (post != null)
                 return post;
@@ -78,27 +49,31 @@ namespace MapTalkie.Controllers
         }
 
         [HttpGet("popular/{polygon}")]
-        public async Task<ActionResult<List<PostView>>> GetPopularPosts(
-            Polygon polygon,
-            [FromServices] IPopularityProvider popularityProvider)
+        public async Task<ActionResult<List<PostView>>> GetPopularPosts(Polygon polygon, int limit = 50)
         {
+            limit = Math.Min(20, Math.Max(limit, 100));
             polygon = MapConvert.ToMercator(polygon);
-            return await _context.Posts
+
+            var query = _context.Posts
                 .Where(p => p.Available && polygon.Contains(p.Location))
-                .Select(p => new PostView
-                {
-                    Id = p.Id,
-                    Text = p.Text,
-                    CreatedAt = p.CreatedAt,
-                    UserId = p.UserId,
-                    UserName = p.User.UserName,
-                    Avatar = "",
-                    Location = p.Location,
-                    Likes = p.CachedLikesCount + p.Likes.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Shares = p.CachedSharesCount + p.Shares.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Comments = p.CachedCommentsCount + p.Comments.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                })
-                .ToListAsync();
+                .OrderByDescending(p => p.CachedCommentsCount * PopularityConstants.CommentsMultiplier +
+                                        p.CachedLikesCount * PopularityConstants.LikesMultiplier +
+                                        p.CachedSharesCount * PopularityConstants.SharesMultiplier);
+            var posts = await query.Select(p => new PostView(p)).Take(limit).ToListAsync();
+            return posts;
+        }
+
+        [HttpGet("latest/{polygon}")]
+        public async Task<ActionResult<List<PostView>>> GetLatestPosts(Polygon polygon, int limit = 50)
+        {
+            limit = Math.Min(20, Math.Max(limit, 100));
+            polygon = MapConvert.ToMercator(polygon);
+
+            var query = _context.Posts
+                .Where(p => p.Available && polygon.Contains(p.Location))
+                .OrderByDescending(p => p.CreatedAt);
+            var posts = await query.Select(p => new PostView(p)).Take(limit).ToListAsync();
+            return posts;
         }
 
         #endregion
@@ -109,7 +84,7 @@ namespace MapTalkie.Controllers
         {
             [Required] public string Text { get; set; } = string.Empty;
             [Required] public Point Location { get; set; } = default!;
-            public bool IsFakeLocation { get; set; } = false;
+            public bool IsOriginalLocation { get; set; } = false;
         }
 
         [HttpPost]
@@ -118,24 +93,19 @@ namespace MapTalkie.Controllers
             var userId = UserId;
             if (userId == null)
                 return Unauthorized();
+            var user = await RequireUser();
             var post = new Post
             {
-                Text = newPost.Text,
-                UserId = userId,
+                UserId = user.Id,
+                IsOriginalLocation = newPost.IsOriginalLocation,
                 Location = newPost.Location,
-                IsOriginalLocation = !newPost.IsFakeLocation
+                Text = newPost.Text
             };
             _context.Add(post);
             await _context.SaveChangesAsync();
-            await _publishEndpoint.Publish(new PostCreated
-            {
-                CreatedAt = post.CreatedAt,
-                Location = post.Location,
-                PostId = post.Id,
-                UserId = post.UserId
-            });
+            await _publishEndpoint.Publish(new PostCreated(post.CreatedAt, post.Id, post.UserId, post.Location));
             return Created(
-                Url.RouteUrl("GetPost", new { post.Id }),
+                Url.RouteUrl("GetPost", new { postId = post.Id })!,
                 new { Id = post.Id.ToString() });
         }
 
@@ -166,7 +136,7 @@ namespace MapTalkie.Controllers
             return Unauthorized();
         }
 
-        [HttpPatch("{postId}")]
+        [HttpDelete("{postId}")]
         public async Task<IActionResult> DeletePost([FromRoute] long postId)
         {
             var post = await _context.Posts.Where(p => p.Available && p.Id == postId).FirstOrDefaultAsync();
@@ -178,6 +148,7 @@ namespace MapTalkie.Controllers
 
             post.Available = false;
             await _context.SaveChangesAsync();
+            await _publishEndpoint.Publish(new PostDeleted(post.Id, post.UserId, post.Location));
             return NoContent();
         }
 
@@ -304,6 +275,55 @@ namespace MapTalkie.Controllers
             comment.Available = false;
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        #endregion
+
+        #region Лайки
+
+        [HttpPut("{postId}/like")]
+        public async Task<IActionResult> LikePost(long postId)
+        {
+            var location = await _context.Posts
+                .Where(p => p.Id == postId && p.Available).Select(p => p.Location)
+                .FirstOrDefaultAsync();
+            if (location == null)
+                return NotFound();
+            var userId = RequireUserId();
+            if (!await _context.PostLikes.AnyAsync(l => l.UserId == userId && l.PostId == postId))
+            {
+                var like = new PostLike
+                {
+                    PostId = postId,
+                    UserId = userId
+                };
+                _context.Add(like);
+                await _context.SaveChangesAsync();
+                await _publishEndpoint.Publish(
+                    new PostEngagement(postId, userId, location, PostEngagementType.Favorite));
+            }
+
+            return Ok();
+        }
+
+        [HttpDelete("{postId}/like")]
+        public async Task<IActionResult> UnLikePost(long postId)
+        {
+            var location = await _context.Posts
+                .Where(p => p.Id == postId && p.Available).Select(p => p.Location)
+                .FirstOrDefaultAsync();
+            if (location == null)
+                return NotFound();
+            var userId = RequireUserId();
+            var like = await _context.PostLikes.FirstOrDefaultAsync(l => l.PostId == postId && l.UserId == userId);
+            if (like == null) return Ok();
+
+            _context.Remove(like);
+            await _context.SaveChangesAsync();
+            await _publishEndpoint.Publish(new PostEngagement(postId, userId, location,
+                PostEngagementType.FavoriteRemoved));
+
+            return Ok();
         }
 
         #endregion

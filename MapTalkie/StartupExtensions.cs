@@ -8,8 +8,6 @@ using MapTalkie.DB.Context;
 using MapTalkie.Domain.Utils.JsonConverters;
 using MapTalkie.Services.AuthService;
 using MapTalkie.Services.FriendshipService;
-using MapTalkie.Services.MessageService;
-using MapTalkie.Services.PopularityProvider;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
 using MassTransit;
@@ -33,17 +31,14 @@ namespace MapTalkie
         {
             services
                 .AddScoped<IAuthService, AuthService>()
-                .AddScoped<IPopularityProvider, PopularityProvider>()
                 .AddScoped<IFriendshipService, FriendshipService>()
-                .AddScoped<ITokenService, TokenService>()
-                .AddScoped<IMessageService, MessageService>();
+                .AddScoped<ITokenService, TokenService>();
         }
 
         public static void ConfigureAll(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
             services.Configure<AuthenticationSettings>(configuration.GetSection(nameof(AuthenticationSettings)));
-            services.Configure<PostOptions>(configuration.GetSection(nameof(PostOptions)));
         }
 
         public static void AddAppCors(this IServiceCollection services, IWebHostEnvironment env)
@@ -94,7 +89,12 @@ namespace MapTalkie
             services.AddDbContext<AppDbContext>(options =>
             {
                 string connectionString = connectionStringProvider();
-                options.UseNpgsql(connectionString, builder => builder.UseNetTopologySuite());
+                options.UseNpgsql(connectionString,
+                    builder =>
+                    {
+                        builder.UseNetTopologySuite();
+                        builder.MigrationsAssembly(typeof(Startup).Assembly.GetName().Name);
+                    });
             });
         }
 
@@ -123,6 +123,7 @@ namespace MapTalkie
         {
             converters.Add(new PolygonJsonConverter());
             converters.Add(new LatLonPointJsonConverter());
+            converters.Add(new IdToStringConverter());
         }
 
         public static void AddAppQuartz(this IServiceCollection services)
@@ -144,7 +145,7 @@ namespace MapTalkie
 
         public static void AddAppIdentity(this IServiceCollection services)
         {
-            services.AddIdentity<User, Role>()
+            services.AddIdentity<User, IdentityRole>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
         }

@@ -5,12 +5,20 @@ using System.Threading.Tasks;
 using MapTalkie.Domain.Messages.Posts;
 using MapTalkie.Domain.Utils;
 using MassTransit;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MapTalkie.Services.Posts.Consumers.PostCreatedConsumer
 {
     // ReSharper disable once ClassNeverInstantiated.Global
     public class PostCreatedConsumer : IConsumer<Batch<PostCreated>>
     {
+        private readonly IMemoryCache _cache;
+
+        public PostCreatedConsumer(IMemoryCache cache)
+        {
+            _cache = cache;
+        }
+
         public async Task Consume(ConsumeContext<Batch<PostCreated>> context)
         {
             await SendGeoUpdate(context);

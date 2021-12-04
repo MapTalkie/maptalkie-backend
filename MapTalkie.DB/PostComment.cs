@@ -19,8 +19,12 @@ namespace MapTalkie.DB
         [IgnoreDataMember] public Post Post { get; set; } = default!;
 
         public long? ReplyToId { get; set; }
+        public int CachedLikesCount { get; set; }
+        public double RankDecayFactor { get; set; } = 1.0;
+
         [IgnoreDataMember] public PostComment? ReplyTo { get; set; }
 
         [IgnoreDataMember] public ICollection<PostComment> Comments { get; set; } = default!;
+        [IgnoreDataMember] public ICollection<PostCommentLike> Likes { get; set; } = default!;
     }
 }

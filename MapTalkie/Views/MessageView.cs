@@ -1,7 +1,8 @@
+using System;
 using MapTalkie.Domain.Utils.JsonConverters;
 using Newtonsoft.Json;
 
-namespace MapTalkie.Services.MessageService
+namespace MapTalkie.Views
 {
     public class MessageView
     {
@@ -12,5 +13,6 @@ namespace MapTalkie.Services.MessageService
         public string Sender { get; set; } = default!;
         public string Text { get; set; } = string.Empty;
         public bool Read { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

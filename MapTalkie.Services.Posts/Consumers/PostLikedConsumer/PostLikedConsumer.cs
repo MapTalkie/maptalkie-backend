@@ -1,84 +1,61 @@
-using System.Collections.Generic;
+using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MapTalkie.DB.Context;
 using MapTalkie.Domain.Messages.Posts;
 using MassTransit;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
 {
     public class PostLikedConsumer : IConsumer<Batch<PostEngagement>>
     {
+        private static DateTime? RefreshScheduledAt = null;
+        private static SemaphoreSlim RefreshSemaphore = new SemaphoreSlim(1, 1);
+        private readonly IMemoryCache _cache;
         private readonly AppDbContext _context;
 
-        public PostLikedConsumer(AppDbContext context)
+        private long MaxUpdates = 1000;
+        private long UpdatesCount = 0;
+
+        public PostLikedConsumer(AppDbContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
         public async Task Consume(ConsumeContext<Batch<PostEngagement>> context)
         {
-            var diff = new Dictionary<long, Engagement>();
-            foreach (var itemContext in context.Message)
+            await PublishEngagement(context);
+            Interlocked.Add(ref UpdatesCount, context.Message.Length);
+
+            if (Interlocked.Read(ref UpdatesCount) > MaxUpdates)
             {
-                var msg = itemContext.Message;
-                if (!diff.ContainsKey(msg.PostId)) diff[msg.PostId] = new Engagement();
-
-                switch (msg.Type)
-                {
-                    case PostEngagementType.Favorite:
-                        diff[msg.PostId].Likes++;
-                        break;
-                    case PostEngagementType.FavoriteRemoved:
-                        diff[msg.PostId].Likes--;
-                        break;
-                    case PostEngagementType.Comment:
-                        diff[msg.PostId].Comments++;
-                        break;
-                    case PostEngagementType.CommentRemoved:
-                        diff[msg.PostId].Comments--;
-                        break;
-                    case PostEngagementType.Share:
-                        diff[msg.PostId].Shares++;
-                        break;
-                    case PostEngagementType.ShareRemoved:
-                        diff[msg.PostId].Shares--;
-                        break;
-                }
-            }
-
-            var ids = diff.Keys.ToList();
-            var dbEngagements = await _context.Posts
-                .Where(p => ids.Contains(p.Id))
-                .Select(p => new
-                {
-                    p.Id, p.CreatedAt, p.Location,
-                    Likes = p.CachedLikesCount + p.Likes.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Shares = p.CachedSharesCount + p.Shares.Count(l => l.CreatedAt > p.CacheUpdatedAt),
-                    Comments = p.CachedCommentsCount + p.Comments.Count(l => l.CreatedAt > p.CacheUpdatedAt)
-                })
-                .ToListAsync();
-
-            foreach (var dbEngagement in dbEngagements)
-            {
-                var engagement = diff[dbEngagement.Id];
-                await context.Publish(new EngagementUpdate
-                {
-                    PostId = dbEngagement.Id,
-                    Likes = dbEngagement.Likes + engagement.Likes,
-                    Shares = dbEngagement.Shares + engagement.Shares,
-                    Comments = dbEngagement.Comments + engagement.Comments,
-                    Location = dbEngagement.Location
-                });
+                Interlocked.And(ref UpdatesCount, 0);
+                // тут может произойти race-condition, но я просто это проигнорирую,
+                // потому что это функция вызывается редко
+                await context.Send(new PostRankDecayRefresher.RefreshRankDecay(.0002, .25));
             }
         }
 
-        private class Engagement
+        private async Task PublishEngagement(ConsumeContext<Batch<PostEngagement>> context)
         {
-            public int Likes { get; set; }
-            public int Comments { get; set; }
-            public int Shares { get; set; }
+            var postIds = context.Message.Select(c => c.Message.PostId).Distinct().ToList();
+
+            foreach (var dbEngagement in _context.Posts
+                .Where(p => postIds.Contains(p.Id) && p.Available)
+                .Select(p => new { p.Id, p.Location, p.CachedCommentsCount, p.CachedLikesCount, p.CachedSharesCount }))
+            {
+                await context.Publish(new EngagementUpdate
+                {
+                    PostId = dbEngagement.Id,
+                    Likes = dbEngagement.CachedLikesCount,
+                    Shares = dbEngagement.CachedSharesCount,
+                    Comments = dbEngagement.CachedCommentsCount,
+                    Location = dbEngagement.Location
+                });
+            }
         }
     }
 }

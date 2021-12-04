@@ -16,10 +16,10 @@ namespace MapTalkie.Tests.Unit
         public IdentityTestsBase()
         {
             ServiceCollection
-                .AddIdentity<User, Role>()
+                .AddIdentity<User, IdentityRole>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
-            userManager = ServiceProvider.GetService<UserManager<User>>();
+            userManager = ServiceProvider.GetRequiredService<UserManager<User>>();
 
             PopulateUsers().Wait();
         }

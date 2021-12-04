@@ -1,4 +1,4 @@
-namespace MapTalkie.Services.MessageService
+namespace MapTalkie.Views
 {
     public class UserInMessageView
     {

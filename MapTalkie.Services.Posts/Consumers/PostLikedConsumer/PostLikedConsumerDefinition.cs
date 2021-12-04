@@ -13,7 +13,7 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
             consumerConfigurator.Options<BatchOptions>()
                 .GroupBy<PostEngagement, long>(@event => @event.Message.PostId)
                 .SetMessageLimit(1000)
-                .SetTimeLimit(500)
+                .SetTimeLimit(1000)
                 .SetConcurrencyLimit(10);
         }
     }

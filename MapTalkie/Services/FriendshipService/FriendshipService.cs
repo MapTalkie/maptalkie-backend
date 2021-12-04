@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.DB;
@@ -37,31 +38,49 @@ namespace MapTalkie.Services.FriendshipService
             }
         }
 
-        public async Task<bool> AreFriends(string user1Id, string user2Id)
+        public async Task<FriendshipsView> FindFriendships(string userId)
         {
-            var count = await DbContext.FriendRequests
-                .Where(fr =>
-                    fr.FromId == user1Id && fr.ToId == user2Id ||
-                    fr.FromId == user2Id && fr.ToId == user1Id)
-                .CountAsync();
-            return count == 2;
-        }
+            var friendRequests = await DbContext.FriendRequests
+                .Where(r => r.FromId == userId || r.ToId == userId)
+                .Select(r => new { r.FromId, r.ToId, To = r.To.UserName, From = r.From.UserName })
+                .ToListAsync();
 
-        public Task<bool> IsFriendRequestSent(string fromId, string toId)
-        {
-            return DbContext.FriendRequests.Where(fr => fr.FromId == fromId && fr.ToId == toId).AnyAsync();
-        }
+            var requestMutual = new Dictionary<string, byte>();
+            var userView = new Dictionary<string, FriendView>();
 
-        public IQueryable<User> QueryFriends(string userId)
-        {
-            return
-                from user in DbContext.Users
-                join outRequest in DbContext.FriendRequests
-                    on user.Id equals outRequest.FromId
-                join inRequest in DbContext.FriendRequests
-                    on user.Id equals inRequest.ToId
-                where inRequest.FromId == userId && outRequest.ToId == userId
-                select user;
+            foreach (var friendRequest in friendRequests)
+            {
+                string id, username;
+                var isOutgoingRequest = friendRequest.FromId == userId;
+                if (isOutgoingRequest)
+                    (id, username) = (friendRequest.ToId, friendRequest.To);
+                else
+                    (id, username) = (friendRequest.FromId, friendRequest.From);
+
+                if (!userView.ContainsKey(id))
+                {
+                    requestMutual[id] = 0;
+                    userView[id] = new FriendView(id, username);
+                }
+
+                requestMutual[id] |= (byte)(isOutgoingRequest ? 0b01 : 0b10);
+            }
+
+            var friends = new List<FriendView>();
+            var incomingRequests = new List<FriendView>();
+            var pendingRequests = new List<FriendView>();
+
+            foreach (var kv in requestMutual)
+            {
+                if (kv.Value == 3)
+                    friends.Add(userView[kv.Key]);
+                else if (kv.Value == 2)
+                    incomingRequests.Add(userView[kv.Key]);
+                else
+                    pendingRequests.Add(userView[kv.Key]);
+            }
+
+            return new FriendshipsView(friends, pendingRequests, incomingRequests);
         }
 
         private Task<FriendRequest?> GetFriendshipRecord(string fromId, string toId)

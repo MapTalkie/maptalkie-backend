@@ -1,9 +1,12 @@
+using NetTopologySuite.Geometries;
+
 namespace MapTalkie.Domain.Messages.Posts
 {
-    public record PostEngagement : PostMessage
-    {
-        public PostEngagementType Type { get; set; }
-    }
+    public record PostEngagement(
+        long PostId,
+        string UserId,
+        Point Location,
+        PostEngagementType Type) : PostMessage(PostId, UserId, Location);
 
     public enum PostEngagementType
     {

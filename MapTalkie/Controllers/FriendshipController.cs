@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.DB.Context;
 using MapTalkie.Services.FriendshipService;
@@ -9,38 +7,38 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Controllers
 {
-    [Authorize]
-    [ApiController]
-    [Route("api/[controller]")]
+    [Authorize, ApiController, Route("api/[controller]")]
     public class FriendshipController : AuthorizedController
     {
-        private readonly AppDbContext _context;
+        private readonly IFriendshipService _friendshipService;
 
-        public FriendshipController(AppDbContext context) : base(context)
+        public FriendshipController(AppDbContext context, IFriendshipService friendshipService) : base(context)
         {
-            _context = context;
+            _friendshipService = friendshipService;
         }
 
         [HttpGet("/friends")]
-        public Task<List<FriendView>> GetFriends([FromServices] IFriendshipService friendshipService)
+        public Task<FriendshipsView> GetFriends([FromServices] IFriendshipService friendshipService)
         {
-            var userId = RequireUserId();
-            return _context.FriendRequests
-                .Where(r => r.FromId == userId)
-                .Select(r => new FriendView
-                {
-                    UserName = r.To.UserName,
-                    UserId = r.ToId,
-                    IsMutual = _context.FriendRequests.Any(r2 => r2.ToId == userId && r2.FromId == r.ToId)
-                })
-                .ToListAsync();
+            return _friendshipService.FindFriendships(RequireUserId());
         }
 
-        public record FriendView
+        [HttpPost("/friendship/{userId}")]
+        public async Task<IActionResult> RequestFriendship(string userId)
         {
-            public string UserName { get; set; } = string.Empty;
-            public string UserId { get; set; } = string.Empty;
-            public bool IsMutual { get; set; }
+            if (!await _context.Users.AnyAsync(u => u.Id == userId))
+                return NotFound();
+            await _friendshipService.EnsureFriendshipRequest(RequireUserId(), userId);
+            return Ok();
+        }
+
+        [HttpDelete("/friendship/{userId}")]
+        public async Task<IActionResult> RevokeFriendship(string userId)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == userId))
+                return NotFound();
+            await _friendshipService.RevokeFriendship(RequireUserId(), userId);
+            return Ok();
         }
     }
 }

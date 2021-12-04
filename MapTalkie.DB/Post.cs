@@ -18,15 +18,14 @@ namespace MapTalkie.DB
         public bool IsOriginalLocation { get; set; } = true;
         public long? SharedId { get; set; }
         [IgnoreDataMember] public Post? Shared { get; set; }
-
-        public int CachedLikesCount { get; set; }
-        public int CachedSharesCount { get; set; }
-        public int CachedCommentsCount { get; set; } = 0;
-        public double CachedFreshRank { get; set; } = 0.0;
-        public DateTime CacheUpdatedAt { get; set; } = DateTime.UtcNow;
-
         [IgnoreDataMember] public ICollection<PostComment> Comments { get; set; } = default!;
         [IgnoreDataMember] public ICollection<PostLike> Likes { get; set; } = default!;
         [IgnoreDataMember] public ICollection<Post> Shares { get; set; } = default!;
+
+
+        public int CachedLikesCount { get; set; }
+        public int CachedCommentsCount { get; set; }
+        public int CachedSharesCount { get; set; }
+        public double RankDecayFactor { get; set; } = 1;
     }
 }

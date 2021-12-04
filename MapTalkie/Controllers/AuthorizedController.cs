@@ -12,13 +12,13 @@ namespace MapTalkie.Controllers
 {
     public class AuthorizedController : Controller
     {
-        protected readonly AppDbContext _dbContext;
+        protected readonly AppDbContext _context;
         private User? _user;
         private bool _userInitialized;
 
-        public AuthorizedController(AppDbContext dbContext)
+        public AuthorizedController(AppDbContext context)
         {
-            _dbContext = dbContext;
+            _context = context;
         }
 
         public string? UserId => HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
@@ -52,7 +52,7 @@ namespace MapTalkie.Controllers
             var id = UserId;
             if (id == null)
                 return Task.FromResult<User?>(null);
-            return _dbContext.Users.Where(u => u.Id == id).FirstOrDefaultAsync()!;
+            return _context.Users.Where(u => u.Id == id).FirstOrDefaultAsync()!;
         }
     }
 }
