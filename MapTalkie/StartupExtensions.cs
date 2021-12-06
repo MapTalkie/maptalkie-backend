@@ -84,8 +84,8 @@ namespace MapTalkie
             this IServiceCollection services,
             Func<string> connectionStringProvider)
         {
-            // TODO поменять
-            services.AddSingleton(new IdGenerator(0));
+            // добавляем
+            services.AddScoped(_ => new IdGenerator(Environment.CurrentManagedThreadId));
             services.AddDbContext<AppDbContext>(options =>
             {
                 string connectionString = connectionStringProvider();

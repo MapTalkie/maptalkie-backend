@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,19 +15,14 @@ namespace MapTalkie.Hubs
     [Authorize]
     public class UserHub : AuthorizedHub
     {
-        public enum SubscriptionType
-        {
-            Latest,
-            Popular
-        }
-
         public static string DirectMessage = "Dm";
         public static string DirectMessageDeleted = "DmDeleted";
         public static string PostsUpdate = "Posts";
         public static string PostEngagement = "Engagement";
 
-        private readonly AppDbContext _context;
+        private static readonly ConcurrentDictionary<string, StateType> ClientStates = new();
 
+        private readonly AppDbContext _context;
 
         public UserHub(
             AppDbContext context,
@@ -34,43 +31,56 @@ namespace MapTalkie.Hubs
             _context = context;
         }
 
+        private StateType State
+        {
+            get => ClientStates[Context.ConnectionId];
+            set => ClientStates[Context.ConnectionId] = value;
+        }
+
+        public override Task OnConnectedAsync()
+        {
+            ClientStates[Context.ConnectionId] = new();
+            return base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            await SetActiveConversation(null);
+            await DisableSubscription();
+
+            ClientStates.Remove(Context.ConnectionId, out var _);
+        }
+
+
         #region PrivateMessages
 
-        private int? _activeConversationId;
-
-        public Task SetActiveConversation(int conversationId)
+        public async Task SetActiveConversation(string? userId)
         {
-            return SetActiveConversationImpl(conversationId);
-        }
-
-        public Task RemoveActiveConversation()
-        {
-            return SetActiveConversationImpl(null);
-        }
-
-        private async Task SetActiveConversationImpl(int? conversationId)
-        {
-            if (conversationId == _activeConversationId)
+            if (userId == State.ActiveConversation)
                 return;
 
-            if (_activeConversationId != null)
+            if (State.ActiveConversation != null)
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId,
-                    MapTalkieGroups.ConversationPrefix + _activeConversationId);
+                    MapTalkieGroups.ConversationPrefix + State.ActiveConversation);
 
-            _activeConversationId = conversationId;
-            if (_activeConversationId != null)
+            State.ActiveConversation = userId;
+            if (userId != null)
                 await Groups.AddToGroupAsync(Context.ConnectionId,
-                    MapTalkieGroups.ConversationPrefix + _activeConversationId);
+                    MapTalkieGroups.ConversationPrefix + userId);
         }
 
         #endregion
 
+        private class StateType
+        {
+            public string? ActiveConversation { get; set; }
+            public Polygon? SubscriptionPolygon { get; set; }
+            public HashSet<long> TrackingPosts { get; set; } = new();
+        }
+
         #region Map
 
-        private SubscriptionType _subscriptionType = SubscriptionType.Popular;
-        private Polygon? _subscriptionPolygon;
-
-        public async Task ConfigureSubscription(Point northEast, Point southWest, SubscriptionType subscriptionType)
+        public async Task ConfigureSubscription(Point northEast, Point southWest)
         {
             northEast = MapConvert.ToMercator(northEast);
             southWest = MapConvert.ToMercator(southWest);
@@ -83,23 +93,32 @@ namespace MapTalkie.Hubs
                     new Coordinate(southWest.X, northEast.Y),
                     new Coordinate(northEast.X, northEast.Y)
                 })) { SRID = 3857 };
-            var oldPoly = _subscriptionPolygon;
-            var oldType = _subscriptionType;
-            _subscriptionPolygon = polygon;
-            _subscriptionType = subscriptionType;
+            var oldPoly = State.SubscriptionPolygon;
+            State.SubscriptionPolygon = polygon;
 
             if (oldPoly == null ||
-                !AreaId.IsSameArea(oldPoly, polygon) ||
-                subscriptionType != oldType)
+                !AreaId.IsSameArea(oldPoly, polygon))
             {
                 if (oldPoly != null)
                     await Groups.RemoveFromGroupAsync(
                         Context.ConnectionId,
-                        MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + AreaId.FromPolygon(oldPoly).Id);
+                        MapTalkieGroups.AreaUpdatesPrefix + AreaId.FromPolygon(oldPoly).Id);
 
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,
-                    MapTalkieGroups.AreaUpdatesPrefix + _subscriptionType + AreaId.FromPolygon(polygon));
+                    MapTalkieGroups.AreaUpdatesPrefix + AreaId.FromPolygon(polygon));
+            }
+        }
+
+        public async Task DisableSubscription()
+        {
+            var state = ClientStates[Context.ConnectionId];
+            if (state.SubscriptionPolygon != null)
+            {
+                await Groups.RemoveFromGroupAsync(
+                    Context.ConnectionId,
+                    MapTalkieGroups.AreaUpdatesPrefix + AreaId.FromPolygon(state.SubscriptionPolygon));
+                state.SubscriptionPolygon = null;
             }
         }
 
@@ -107,24 +126,25 @@ namespace MapTalkie.Hubs
 
         #region Engagement
 
-        private HashSet<long> _trackingPosts = new();
-
         public async Task TrackPosts(long[] postIds)
         {
+            var state = ClientStates[Context.ConnectionId];
             var set = new HashSet<long>(postIds);
-            foreach (var postId in _trackingPosts.Where(postId => !set.Contains(postId)))
+            var trackingPosts = State.TrackingPosts;
+            foreach (var postId in trackingPosts.Where(postId => !set.Contains(postId)))
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
 
-            foreach (var postId in set.Where(postId => !_trackingPosts.Contains(postId)))
+            foreach (var postId in set.Where(postId => !trackingPosts.Contains(postId)))
                 await Groups.AddToGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
 
-            _trackingPosts = set;
+            State.TrackingPosts = set;
         }
 
         public async Task StopTrackingPosts()
         {
-            foreach (var postId in _trackingPosts)
+            foreach (var postId in State.TrackingPosts)
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.PostUpdatesPrefix + postId);
+            State.TrackingPosts.Clear();
         }
 
         #endregion

@@ -1,3 +1,4 @@
+using IdGen;
 using MapTalkie.DB.Utils;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace MapTalkie.DB.Context
 {
     public class AppDbContext : IdentityDbContext<User, IdentityRole, string>
     {
+        private readonly IdGenerator _generator;
         private readonly ILoggerFactory _loggerFactory;
 
         public AppDbContext()
@@ -20,17 +22,20 @@ namespace MapTalkie.DB.Context
             : base(options)
         {
             _loggerFactory = new NullLoggerFactory();
+            _generator = new IdGenerator(0);
         }
 
         public AppDbContext(
             DbContextOptions<AppDbContext> options,
-            ILoggerFactory loggerFactory) : base(options)
+            ILoggerFactory loggerFactory,
+            IdGenerator idGenerator) : base(options)
         {
             _loggerFactory = loggerFactory;
+            _generator = idGenerator;
         }
 
         public virtual DbSet<Attachment> Attachments { get; set; } = default!;
-        public virtual DbSet<BlacklistedUser> BlacklistedUsers { get; set; }
+        public virtual DbSet<BlacklistedUser> BlacklistedUsers { get; set; } = default!;
         public virtual DbSet<FriendRequest> FriendRequests { get; set; } = default!;
         public virtual DbSet<Post> Posts { get; set; } = default!;
         public virtual DbSet<PostLike> PostLikes { get; set; } = default!;
@@ -46,6 +51,8 @@ namespace MapTalkie.DB.Context
         {
             base.OnModelCreating(builder);
 
+            builder.HasPostgresExtension("postgis");
+
             builder.Entity<User>().ToTable("asp_net_users");
             builder.Entity<IdentityUserToken<string>>().ToTable("asp_net_user_tokens");
             builder.Entity<IdentityUserLogin<string>>().ToTable("asp_net_user_logins");
@@ -54,12 +61,12 @@ namespace MapTalkie.DB.Context
             builder.Entity<IdentityUserRole<string>>().ToTable("asp_net_user_roles");
             builder.Entity<IdentityRoleClaim<string>>().ToTable("asp_net_role_claims");
 
-            builder.HasPostgresExtension("postgis");
+            var idGenerator = new IdGenValueGenerator(_generator);
 
             {
                 var post = builder.Entity<Post>();
 
-                post.Property(p => p.Id).HasValueGenerator<IdGenValueGenerator>();
+                post.Property(p => p.Id).HasValueGenerator((p, e) => idGenerator);
 
                 post.HasMany(p => p.Shares)
                     .WithOne(p => p.Shared!);
@@ -68,8 +75,8 @@ namespace MapTalkie.DB.Context
             }
 
             // idgen
-            builder.Entity<PrivateMessage>().Property(m => m.Id).HasValueGenerator<IdGenValueGenerator>();
-            builder.Entity<PostComment>().Property(c => c.Id).HasValueGenerator<IdGenValueGenerator>();
+            builder.Entity<PrivateMessage>().Property(m => m.Id).HasValueGenerator((p, e) => idGenerator);
+            builder.Entity<PostComment>().Property(c => c.Id).HasValueGenerator((p, e) => idGenerator);
 
             // первичные ключи для таблиц
             builder.Entity<BlacklistedUser>().HasKey(fr => new { fr.BlockedByUserId, fr.UserId });

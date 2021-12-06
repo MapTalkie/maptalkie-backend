@@ -27,7 +27,7 @@ namespace MapTalkie.Migrations
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
-        {
+        {            
             migrationBuilder.DropForeignKey(
                 name: "fk_blacklisted_users_users_blocked_by_user_id",
                 table: "blacklisted_users");

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 
 namespace MapTalkie
 {
@@ -67,6 +68,8 @@ namespace MapTalkie
             using var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
             var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
             context.Database.Migrate();
+            context.Database.OpenConnection();
+            ((NpgsqlConnection)context.Database.GetDbConnection()).ReloadTypes();
         }
     }
 }

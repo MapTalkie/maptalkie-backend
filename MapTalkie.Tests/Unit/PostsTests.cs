@@ -1,25 +1,28 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.DB;
-using Microsoft.Extensions.DependencyInjection;
+using MapTalkie.Domain.Popularity;
+using MapTalkie.Domain.Utils;
+using MapTalkie.Tests.Unit.Fixtures;
+using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
 using Xunit;
 
 namespace MapTalkie.Tests.Unit
 {
+    [Collection(UnitTestsFixtures.Database)]
     public class PostsTests : IdentityTestsBase
     {
-        public PostsTests()
+        public PostsTests(DbTemplateFixture databaseFixture) : base(databaseFixture)
         {
-            ServiceCollection.AddScoped<IPostService, PostService>();
         }
-
-        private IPostService PostService => ServiceProvider.GetRequiredService<IPostService>();
 
         [Fact]
         public async Task TestNewPost()
         {
+            await PopulateUsers();
             var post = await CreateSamplePost();
 
             Assert.True(post.Available);
@@ -29,6 +32,7 @@ namespace MapTalkie.Tests.Unit
         [Fact]
         public async Task TestPostsInArea()
         {
+            await PopulateUsers();
             var posts = new Post[10];
 
             for (var i = 0; i < 10; i++)
@@ -38,30 +42,37 @@ namespace MapTalkie.Tests.Unit
                 new LinearRing(
                     new[]
                     {
-                        new Coordinate(8905559.263461877, 7967317.535015895),
-                        new Coordinate(7967317.535015895, 6446275.841017148),
-                        new Coordinate(9350837.22663497, 6446275.841017148),
-                        new Coordinate(9350837.22663497, 7967317.535015895),
-                        new Coordinate(8905559.263461877, 7967317.535015895)
-                    })) { SRID = 3857 };
-            var inArea = PostService.QueryPosts(poly);
+                        new Coordinate(80.933952, 50.018803),
+                        new Coordinate(80.933952, 56.018803),
+                        new Coordinate(83.933952, 56.018803),
+                        new Coordinate(83.933952, 50.018803),
+                        new Coordinate(80.933952, 50.018803)
+                    })) { SRID = 4326 };
+            poly = MapConvert.ToMercator(poly);
+            var inArea = Context.Posts.Where(p => poly.Contains(p.Location));
+            var allPosts = await Context.Posts.ToListAsync();
             Assert.Equal(10, await inArea.CountAsync());
         }
 
         private async Task<Post> CreateSamplePost()
         {
-            return await PostService.CreateTextPost(
-                $"This is test {Guid.NewGuid()}",
-                UserIds[0],
-                new Point(82.933952, 55.018803) { SRID = 4326 },
-                true);
+            var post = new Post
+            {
+                Location = MapConvert.ToMercator(new Point(82.933952, 55.018803) { SRID = 4326 }),
+                Text = $"This is test {Guid.NewGuid()}",
+                UserId = UserIds[0]
+            };
+            Context.Add(post);
+            await Context.SaveChangesAsync();
+            return post;
         }
 
         [Fact]
         public async Task TestPopularPostsTimeDecay()
         {
+            await PopulateUsers();
             var random = new Random();
-            var newestPosts = new List<long>();
+            var newestPosts = new List<Post>();
             {
                 var old = DateTime.UtcNow - TimeSpan.FromDays(3);
 
@@ -82,10 +93,11 @@ namespace MapTalkie.Tests.Unit
                         UserId = UserIds[0],
                         Text = "Hello!",
                         CreatedAt = postTime,
-                        Comments = comments
+                        Comments = comments,
+                        Location = new Point(0, 0) { SRID = 3857 }
                     };
                     if (i >= 10)
-                        newestPosts.Add(post.Id);
+                        newestPosts.Add(post);
 
                     Context.Add(post);
                 }
@@ -93,64 +105,13 @@ namespace MapTalkie.Tests.Unit
                 await Context.SaveChangesAsync();
             }
 
-            var popularPosts = await PostService.QueryPopularPosts().ToListAsync();
-            Assert.DoesNotContain(popularPosts, p => !newestPosts.Contains(p.Id));
-        }
+            await Context.Database.ExecuteSqlInterpolatedAsync(
+                $"call update_exp_ranking_decay({Popularity.MinDecay}, {Popularity.DecayCoefficient});");
 
-        [Fact]
-        public async Task TestPopularPostsLikePriority()
-        {
-            var popularIds = new List<string>();
-            {
-                for (var i = 0; i < 20; i++)
-                {
-                    var post = new Post
-                    {
-                        UserId = UserIds[0],
-                        Text = "Hello!"
-                    };
-
-                    Context.Add(post);
-                }
-
-                for (var i = 0; i < 20; i++)
-                {
-                    PostComment[] comments;
-                    PostLike[] likes;
-
-                    if (i < 10)
-                    {
-                        comments = new PostComment[10];
-
-                        for (var j = 0; j < 10; j++)
-                            comments[j] = new PostComment
-                            {
-                                SenderId = UserIds[1]
-                            };
-                        likes = Array.Empty<PostLike>();
-                    }
-                    else
-                    {
-                        likes = new PostLike[10];
-
-                        for (var j = 0; j < 10; j++)
-                            likes[j] = new PostLike
-                            {
-                                UserId = UserIds[1],
-                                PostId = j
-                            };
-                        comments = Array.Empty<PostComment>();
-                    }
-
-                    await Context.AddRangeAsync(likes);
-                    await Context.AddRangeAsync(comments);
-                }
-
-                await Context.SaveChangesAsync();
-            }
-
-            var popularPosts = await PostService.QueryPopularPosts().ToListAsync();
-            Assert.DoesNotContain(popularPosts, p => p.Id < 10);
+            var newestIds = newestPosts.Select(p => p.Id);
+            var popularPosts = await Context.Posts.OrderByDescending(Popularity.PopularityRankProjection).Take(10)
+                .ToListAsync();
+            Assert.DoesNotContain(popularPosts, p => !newestIds.Contains(p.Id));
         }
     }
 }

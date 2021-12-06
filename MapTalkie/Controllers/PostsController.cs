@@ -8,14 +8,13 @@ using MapTalkie.DB.Context;
 using MapTalkie.Domain.Messages.Posts;
 using MapTalkie.Domain.Popularity;
 using MapTalkie.Domain.Utils;
-using MapTalkie.Domain.Utils.JsonConverters;
 using MapTalkie.Utils;
 using MapTalkie.Views;
 using MassTransit;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using Newtonsoft.Json;
 
 namespace MapTalkie.Controllers
 {
@@ -41,7 +40,7 @@ namespace MapTalkie.Controllers
         {
             var post = await _context.Posts
                 .Where(p => p.Available && p.Id == postId)
-                .Select(p => new PostView(p))
+                .Select(PostView.Projection)
                 .FirstOrDefaultAsync();
             if (post != null)
                 return post;
@@ -56,10 +55,8 @@ namespace MapTalkie.Controllers
 
             var query = _context.Posts
                 .Where(p => p.Available && polygon.Contains(p.Location))
-                .OrderByDescending(p => p.CachedCommentsCount * PopularityConstants.CommentsMultiplier +
-                                        p.CachedLikesCount * PopularityConstants.LikesMultiplier +
-                                        p.CachedSharesCount * PopularityConstants.SharesMultiplier);
-            var posts = await query.Select(p => new PostView(p)).Take(limit).ToListAsync();
+                .OrderByDescending(Popularity.PopularityRankProjection);
+            var posts = await query.Select(PostView.Projection).Take(limit).ToListAsync();
             return posts;
         }
 
@@ -72,7 +69,7 @@ namespace MapTalkie.Controllers
             var query = _context.Posts
                 .Where(p => p.Available && polygon.Contains(p.Location))
                 .OrderByDescending(p => p.CreatedAt);
-            var posts = await query.Select(p => new PostView(p)).Take(limit).ToListAsync();
+            var posts = await query.Select(PostView.Projection).Take(limit).ToListAsync();
             return posts;
         }
 
@@ -87,7 +84,7 @@ namespace MapTalkie.Controllers
             public bool IsOriginalLocation { get; set; } = false;
         }
 
-        [HttpPost]
+        [HttpPost, Authorize]
         public async Task<IActionResult> CreateNewPost([FromBody] NewPostPayload newPost)
         {
             var userId = UserId;
@@ -118,7 +115,7 @@ namespace MapTalkie.Controllers
             [Required] public string Text { get; set; } = string.Empty;
         }
 
-        [HttpPatch("{postId}")]
+        [HttpPatch("{postId}"), Authorize]
         public async Task<IActionResult> UpdatePost([FromRoute] long postId,
             [FromBody] UpdatePostBody body)
         {
@@ -136,7 +133,7 @@ namespace MapTalkie.Controllers
             return Unauthorized();
         }
 
-        [HttpDelete("{postId}")]
+        [HttpDelete("{postId}"), Authorize]
         public async Task<IActionResult> DeletePost([FromRoute] long postId)
         {
             var post = await _context.Posts.Where(p => p.Available && p.Id == postId).FirstOrDefaultAsync();
@@ -156,21 +153,6 @@ namespace MapTalkie.Controllers
 
         #region Комментарии
 
-        public record CommentView
-        {
-            public string UserName { get; set; } = string.Empty;
-            public string UserId { get; set; } = string.Empty;
-            public DateTime CreatedAt { get; set; }
-
-            [JsonConverter(typeof(IdToStringConverter))]
-            public long Id { get; set; }
-
-            [JsonConverter(typeof(IdToStringConverter))]
-            public long PostId { get; set; }
-
-            public string Text { get; set; } = string.Empty;
-        }
-
         [HttpGet("{postId}/comments")]
         public async Task<ActionResult<ListResponse<CommentView>>> GetComments(
             [FromRoute] long postId,
@@ -183,21 +165,9 @@ namespace MapTalkie.Controllers
                 await _context.PostComments
                     .Where(c => c.Available && c.PostId == postId)
                     .OrderByDescending(c => c.CreatedAt)
-                    .Select(c => SelectCommentView(c))
+                    .Select(CommentView.Projection)
                     .ToListAsync()
             );
-        }
-
-        private static CommentView SelectCommentView(PostComment c)
-        {
-            return new CommentView
-            {
-                Id = c.Id,
-                PostId = c.PostId,
-                CreatedAt = c.CreatedAt,
-                UserId = c.SenderId,
-                UserName = c.Sender.Id
-            };
         }
 
         public class NewCommentRequest
@@ -206,7 +176,7 @@ namespace MapTalkie.Controllers
             public long? ReplyTo { get; set; }
         }
 
-        [HttpPost("{postId}/comments")]
+        [HttpPost("{postId}/comments"), Authorize]
         public async Task<IActionResult> CreateComment(
             [FromRoute] long postId,
             [FromBody] NewCommentRequest body)
@@ -221,7 +191,7 @@ namespace MapTalkie.Controllers
             var comment = new PostComment
             {
                 SenderId = userId,
-                Text = body.Text,
+                Text = body.Text
             };
 
             if (body.ReplyTo != null)
@@ -239,7 +209,7 @@ namespace MapTalkie.Controllers
             [Required] public string Text { get; set; } = string.Empty;
         }
 
-        [HttpPost("{postId}/comments/{commentId:long}")]
+        [HttpPost("{postId}/comments/{commentId:long}"), Authorize]
         public async Task<ActionResult<PostComment>> UpdateComment(
             [FromRoute] long postId,
             [FromRoute] long commentId,
@@ -263,7 +233,7 @@ namespace MapTalkie.Controllers
             return comment;
         }
 
-        [HttpDelete("{postId}/comments/{commentId}")]
+        [HttpDelete("{postId}/comments/{commentId}"), Authorize]
         public async Task<IActionResult> DeleteComment(long commentId, long postId)
         {
             var comment = await _context.PostComments
@@ -281,7 +251,7 @@ namespace MapTalkie.Controllers
 
         #region Лайки
 
-        [HttpPut("{postId}/like")]
+        [HttpPut("{postId}/like"), Authorize]
         public async Task<IActionResult> LikePost(long postId)
         {
             var location = await _context.Posts
@@ -306,7 +276,7 @@ namespace MapTalkie.Controllers
             return Ok();
         }
 
-        [HttpDelete("{postId}/like")]
+        [HttpDelete("{postId}/like"), Authorize]
         public async Task<IActionResult> UnLikePost(long postId)
         {
             var location = await _context.Posts

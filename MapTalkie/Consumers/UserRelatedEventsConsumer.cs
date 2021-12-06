@@ -39,7 +39,7 @@ namespace MapTalkie.Consumers
         {
             foreach (var update in context.Message.Updates)
                 await _hubContext.Clients
-                    .Group(MapTalkieGroups.AreaUpdatesPrefix + UserHub.SubscriptionType.Latest + update.Id)
+                    .Group(MapTalkieGroups.AreaUpdatesPrefix + update.Id)
                     .SendAsync(UserHub.PostsUpdate, new
                     {
                         Posts = update.NewPosts.Select(p => new
@@ -47,8 +47,7 @@ namespace MapTalkie.Consumers
                             Id = p.PostId,
                             p.UserId,
                             Location = MapConvert.ToLatLon(p.Location)
-                        }).ToList(),
-                        Type = UserHub.SubscriptionType.Latest
+                        }).ToList()
                     });
         }
 

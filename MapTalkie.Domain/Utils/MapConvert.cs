@@ -63,12 +63,12 @@ namespace MapTalkie.Domain.Utils
                 throw new InvalidSridException(new[] { 0, 4326, 3857 }, poly.SRID);
 
             var coords = poly.Shell.Coordinates
-                .Select(c => new double[] { c.X, c.Y })
+                .Select(c => new[] { c.X, c.Y })
                 .ToList();
             var newCoords = LatLonToMercatorTransform.TransformList(coords)
                 .Select(l => new Coordinate(l[0], l[1]))
                 .ToArray();
-            return new Polygon(new LinearRing(newCoords)) { SRID = 4326 };
+            return new Polygon(new LinearRing(newCoords)) { SRID = 3857 };
         }
 
         public static Point ToLatLon(Point point)

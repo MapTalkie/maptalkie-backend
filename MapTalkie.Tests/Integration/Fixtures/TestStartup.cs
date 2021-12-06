@@ -6,9 +6,11 @@ using MapTalkie.Services.Posts.Consumers.PostCreatedConsumer;
 using MapTalkie.Services.Posts.Consumers.PostLikedConsumer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 
 namespace MapTalkie.Tests.Integration.Fixtures
 {
@@ -61,12 +63,6 @@ namespace MapTalkie.Tests.Integration.Fixtures
             else
                 app.UseHsts();
 
-            if (Env.IsDevelopment())
-            {
-                app.UseOpenApi();
-                app.UseSwaggerUi3();
-            }
-
             app.UseHttpsRedirection();
             app.UseRouting();
             app.UseHealthChecks("/health");
@@ -83,7 +79,13 @@ namespace MapTalkie.Tests.Integration.Fixtures
 
             using var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
             var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
-            context.Database.EnsureCreated();
+            context.Database.Migrate();
+            context.Database.OpenConnection();
+            ((NpgsqlConnection)context.Database.GetDbConnection()).ReloadTypes();
         }
+    }
+
+    public class NpgsqlConnect
+    {
     }
 }

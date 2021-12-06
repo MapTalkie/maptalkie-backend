@@ -9,6 +9,8 @@ namespace MapTalkie.Tests.Unit
     {
         protected readonly IServiceCollection ServiceCollection;
 
+        private IServiceProvider? _serviceProvider = null;
+
         public TestsBase()
         {
             ServiceCollection = new ServiceCollection();
@@ -19,6 +21,6 @@ namespace MapTalkie.Tests.Unit
             ServiceCollection.AddMemoryCache();
         }
 
-        protected IServiceProvider ServiceProvider => ServiceCollection.BuildServiceProvider();
+        protected IServiceProvider ServiceProvider => _serviceProvider ??= ServiceCollection.BuildServiceProvider();
     }
 }

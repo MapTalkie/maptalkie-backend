@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -81,6 +82,28 @@ namespace MapTalkie.Services.FriendshipService
             }
 
             return new FriendshipsView(friends, pendingRequests, incomingRequests);
+        }
+
+        public async Task<FriendshipState> GetFriendshipState(string userId1, string userId2)
+        {
+            var requests = await DbContext.FriendRequests
+                .Where(r => (r.FromId == userId1 && r.ToId == userId2) ||
+                            (r.FromId == userId2 && r.ToId == userId1))
+                .ToListAsync();
+
+            switch (requests.Count)
+            {
+                case 0:
+                    return FriendshipState.None;
+                case 2:
+                    return FriendshipState.Mutual;
+                case 1:
+                    return requests[0].FromId == userId1
+                        ? FriendshipState.RequestPending
+                        : FriendshipState.IncomingRequest;
+                default:
+                    throw new ApplicationException("Received more than 2 friendship request records for two users");
+            }
         }
 
         private Task<FriendRequest?> GetFriendshipRecord(string fromId, string toId)

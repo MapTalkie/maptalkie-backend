@@ -13,4 +13,8 @@
         <PackageReference Include="ProjNET" Version="2.0.0"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\MapTalkie.DB\MapTalkie.DB.csproj"/>
+    </ItemGroup>
+
 </Project>

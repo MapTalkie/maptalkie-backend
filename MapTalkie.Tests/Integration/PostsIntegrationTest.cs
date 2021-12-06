@@ -33,19 +33,19 @@ namespace MapTalkie.Tests.Integration
             var hub = new HubConnectionBuilder()
                 .WithUrl(new Uri(_serverFixture.Server.BaseAddress, "_signalr/user"), o =>
                 {
-                    o.AccessTokenProvider = () => Task.FromResult(token);
+                    o.AccessTokenProvider = () => Task.FromResult(token)!;
                     o.HttpMessageHandlerFactory = _ => _serverFixture.Server.CreateHandler();
                 })
+                .WithAutomaticReconnect()
                 .Build();
 
             await hub.StartAsync();
-            PostsUpdate? postsUpdate = null;
-            hub.On(UserHub.PostsUpdate, (PostsUpdate v) => { postsUpdate = v; });
+            dynamic? postsUpdate = null;
+            hub.On(UserHub.PostsUpdate, (dynamic v) => { postsUpdate = v; });
 
             await hub.SendAsync(nameof(UserHub.ConfigureSubscription),
                 new { lat = 56.018803, lon = 83.933952 },
-                new { lat = 54.018803, lon = 81.933952 },
-                nameof(UserHub.SubscriptionType.Latest));
+                new { lat = 54.018803, lon = 81.933952 });
             var response = await client.PostAsJsonAsync("/api/posts", new
             {
                 text = "yoooooo this is a test yoooo",
@@ -57,17 +57,15 @@ namespace MapTalkie.Tests.Integration
             }
 
             response.EnsureSuccessStatusCode();
-            await Task.Delay(1000);
+            await Task.Delay(3000);
             Assert.NotNull(postsUpdate);
-            Assert.Equal(UserHub.SubscriptionType.Latest, postsUpdate.Type);
 
             // изменим на другую область 
             postsUpdate = null;
             await hub.SendAsync(nameof(UserHub.ConfigureSubscription),
                 new { lat = 26.018803, lon = 23.933952 },
-                new { lat = 24.018803, lon = 21.933952 },
-                nameof(UserHub.SubscriptionType.Latest));
-            await Task.Delay(1000);
+                new { lat = 24.018803, lon = 21.933952 });
+            await Task.Delay(2000);
             response = await client.PostAsJsonAsync("/api/posts", new
             {
                 text = "this is not supposed to be here",
@@ -79,7 +77,7 @@ namespace MapTalkie.Tests.Integration
             }
 
             response.EnsureSuccessStatusCode();
-            await Task.Delay(1000);
+            await Task.Delay(2000);
             Assert.Null(postsUpdate);
         }
 
@@ -87,6 +85,19 @@ namespace MapTalkie.Tests.Integration
         public async Task LikePost()
         {
             var client = await CreateAuthorizedClient();
+            var response = await client.PostAsJsonAsync("/api/posts", new
+            {
+                text = "yoooooo this is a test yoooo",
+                location = new { lat = 55.018803, lon = 82.933952 }
+            });
+            response.EnsureSuccessStatusCode();
+            var data = await response.Content.ReadFromJsonAsync<IdResponse>();
+            response = await client.PutAsync("/api/posts/" + data!.Id + "/like", null);
+            response.EnsureSuccessStatusCode();
+            response = await client.GetAsync("/api/posts/" + data.Id);
+            var postView = await response.Content.ReadFromJsonAsync<PostViewLike>();
+            Assert.Equal(data.Id, postView!.Id);
+            Assert.Equal(1, postView.Likes);
         }
 
         private async Task<HttpClient> CreateAuthorizedClient()
@@ -105,9 +116,19 @@ namespace MapTalkie.Tests.Integration
             return client;
         }
 
+        class IdResponse
+        {
+            public string Id { get; set; }
+        }
+
+        class PostViewLike
+        {
+            public string Id { get; set; }
+            public int Likes { get; set; }
+        }
+
         private class PostsUpdate
         {
-            public UserHub.SubscriptionType Type { get; set; }
             public List<PostUpdate> Posts { get; set; }
 
             public class LatLon

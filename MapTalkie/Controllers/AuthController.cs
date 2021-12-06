@@ -7,6 +7,7 @@ using MapTalkie.Domain.Messages.User;
 using MapTalkie.Services.AuthService;
 using MapTalkie.Services.TokenService;
 using MassTransit;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -91,7 +92,7 @@ namespace MapTalkie.Controllers
                         HttpOnly = true,
                         SameSite = SameSiteMode.None,
                         Secure = true,
-                        Path = new Uri(Url.RouteUrl("AuthHybridTokenRefresh")).AbsolutePath,
+                        Path = new Uri(Url.RouteUrl("AuthHybridTokenRefresh")!).AbsolutePath,
                         Expires = DateTimeOffset.Now + _authenticationSettings.Value.RefreshTokenLifetime
                     });
             }
@@ -147,6 +148,9 @@ namespace MapTalkie.Controllers
                 return BadRequest(result.Errors);
             return new SignUpResponse { Detail = "User created successfully" };
         }
+
+        [Authorize, HttpGet("check")]
+        public IActionResult IsAuthorized() => NoContent();
 
         public class LoginRequest
         {

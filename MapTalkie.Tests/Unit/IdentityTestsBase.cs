@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
+using MapTalkie.Tests.Unit.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,21 +12,18 @@ namespace MapTalkie.Tests.Unit
     {
         protected static readonly string PASSWORD = "Password1$_";
         protected readonly List<string> UserIds = new();
-        protected readonly UserManager<User> userManager;
 
-        public IdentityTestsBase()
+        public IdentityTestsBase(DbTemplateFixture databaseFixture) : base(databaseFixture)
         {
             ServiceCollection
                 .AddIdentity<User, IdentityRole>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
-            userManager = ServiceProvider.GetRequiredService<UserManager<User>>();
-
-            PopulateUsers().Wait();
         }
 
-        private async Task PopulateUsers()
+        protected async Task PopulateUsers()
         {
+            var userManager = ServiceProvider.GetRequiredService<UserManager<User>>();
             for (var i = 1; i <= 5; i++)
             {
                 var user = new User
