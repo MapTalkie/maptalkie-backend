@@ -23,7 +23,7 @@ namespace MapTalkie.Tests.Integration
         }
 
         [Fact]
-        public async Task Test_logging_in_with_wrong_credentials()
+        public async Task TestLoggingInWithWrongCredentials()
         {
             var client = _serverFixture.Server.CreateClient();
             var response = await client.PostAsync("/api/auth/signin", JsonContent.Create(new

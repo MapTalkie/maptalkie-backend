@@ -98,6 +98,11 @@ namespace MapTalkie.Tests.Integration
             var postView = await response.Content.ReadFromJsonAsync<PostViewLike>();
             Assert.Equal(data.Id, postView!.Id);
             Assert.Equal(1, postView.Likes);
+
+            response = await client.DeleteAsync("/api/posts/" + data.Id + "/like");
+            response = await client.GetAsync("/api/posts/" + data.Id);
+            postView = await response.Content.ReadFromJsonAsync<PostViewLike>();
+            Assert.Equal(0, postView!.Likes);
         }
 
         private async Task<HttpClient> CreateAuthorizedClient()

@@ -1,7 +1,8 @@
 namespace MapTalkie.Domain.Messages.PrivateMessages
 {
-    public record PrivateMessage : PrivateMessageBase
-    {
-        public string Text { get; set; }
-    }
+    public record PrivateMessage(
+        string SenderId,
+        string RecipientId,
+        long MessageId,
+        string Text);
 }

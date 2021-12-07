@@ -37,17 +37,18 @@ namespace MapTalkie.Hubs
             set => ClientStates[Context.ConnectionId] = value;
         }
 
-        public override Task OnConnectedAsync()
+        public override async Task OnConnectedAsync()
         {
             ClientStates[Context.ConnectionId] = new();
-            return base.OnConnectedAsync();
+            await Groups.AddToGroupAsync(Context.ConnectionId, MapTalkieGroups.Messages + UserId);
+            await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             await SetActiveConversation(null);
             await DisableSubscription();
-
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, MapTalkieGroups.Messages + UserId);
             ClientStates.Remove(Context.ConnectionId, out var _);
         }
 

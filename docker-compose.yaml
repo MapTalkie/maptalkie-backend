@@ -1,0 +1,32 @@
+version: '3'
+services: 
+  nginx-proxy-service:
+    build:
+      context: nginx
+    volumes:
+      - /etc/letsencrypt/live/api.maptalkie.live:/certs
+    ports:
+      - "80:8080"
+  rabbitmq-service:
+    image: rabbitmq:3.9.11-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  postgis-service:
+    image: postgis/postgis:14-master
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: donttellanyone
+      POSTGRES_USER: admin
+    volumes:
+      - maptalkie-postgres-data:/var/lib/postgresql/data
+  maptalkie-api:
+    build:
+      context: .
+      dockerfile: MapTalkie/Dockerfile
+    environment:
+      ASPNETCORE_URLS: https://*:80
+      CorsSettings__Origins__0: http://localhost:3000
+      CorsSettings__Origins__1: https://localhost:3000
+      ConnectionStrings__Postgres: "Host=postgis-service;Database=maptalkie_prod;Username=admin;Password=donttellanyone"

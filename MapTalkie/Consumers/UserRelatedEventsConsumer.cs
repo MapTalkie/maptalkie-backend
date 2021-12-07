@@ -13,7 +13,8 @@ namespace MapTalkie.Consumers
     public class UserRelatedEventsConsumer :
         IConsumer<EngagementUpdate>,
         IConsumer<GeoUpdates>,
-        IConsumer<PrivateMessageBase>
+        IConsumer<PrivateMessage>,
+        IConsumer<PrivateMessageDeleted>
     {
         private readonly IHubContext<UserHub> _hubContext;
 
@@ -51,30 +52,27 @@ namespace MapTalkie.Consumers
                     });
         }
 
-        public async Task Consume(ConsumeContext<PrivateMessageBase> context)
+        public async Task Consume(ConsumeContext<PrivateMessage> context)
         {
-            var groupProxy =
-                _hubContext.Clients.Group(MapTalkieGroups.Conversation(context.Message.SenderId,
-                    context.Message.RecipientId));
-            switch (context.Message)
+            await _hubContext.Clients.Groups(
+                MapTalkieGroups.Messages + context.Message.RecipientId,
+                MapTalkieGroups.Messages + context.Message.SenderId).SendAsync(UserHub.DirectMessage, new
             {
-                case PrivateMessage privateMessage:
-                    await groupProxy.SendAsync(UserHub.DirectMessage, new
-                    {
-                        Id = privateMessage.MessageId,
-                        privateMessage.Text,
-                        privateMessage.RecipientId,
-                        privateMessage.SenderId
-                    });
-                    break;
-                case PrivateMessageDeleted privateMessageDeleted:
-                    await groupProxy.SendAsync(UserHub.DirectMessageDeleted, new
-                    {
-                        privateMessageDeleted.MessageId,
-                        privateMessageDeleted.RecipientId
-                    });
-                    break;
-            }
+                Id = context.Message.MessageId,
+                context.Message.Text,
+                context.Message.RecipientId,
+                context.Message.SenderId
+            });
+        }
+
+        public async Task Consume(ConsumeContext<PrivateMessageDeleted> context)
+        {
+            await _hubContext.Clients.Group(MapTalkieGroups.Messages + context.Message.SenderId).SendAsync(
+                UserHub.DirectMessageDeleted, new
+                {
+                    context.Message.MessageId,
+                    context.Message.RecipientId
+                });
         }
     }
 }

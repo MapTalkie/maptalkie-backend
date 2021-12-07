@@ -45,12 +45,6 @@ namespace MapTalkie
             else
                 app.UseHsts();
 
-            if (Env.IsDevelopment())
-            {
-                app.UseOpenApi();
-                app.UseSwaggerUi3();
-            }
-
             app.UseHttpsRedirection();
             app.UseRouting();
             app.UseHealthChecks("/health");
@@ -67,6 +61,8 @@ namespace MapTalkie
 
             using var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope();
             var context = serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            // TODO как-то это исправить
             context.Database.Migrate();
             context.Database.OpenConnection();
             ((NpgsqlConnection)context.Database.GetDbConnection()).ReloadTypes();

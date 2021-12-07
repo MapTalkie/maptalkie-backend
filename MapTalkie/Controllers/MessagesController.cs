@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using MapTalkie.DB;
 using MapTalkie.DB.Context;
-using MapTalkie.Utils;
 using MapTalkie.Views;
+using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,18 +15,22 @@ namespace MapTalkie.Controllers
     [Authorize, ApiController, Route("api/[controller]")]
     public class MessagesController : AuthorizedController
     {
-        public MessagesController(AppDbContext context) : base(context)
+        private readonly IPublishEndpoint _publishEndpoint;
+
+        public MessagesController(AppDbContext context, IPublishEndpoint publishEndpoint) : base(context)
         {
+            _publishEndpoint = publishEndpoint;
         }
 
         [HttpGet("pm")]
-        public async Task<ListResponse<ConversationView>> GetConversations()
+        public async Task<List<ConversationView>> GetConversations()
         {
             var userId = RequireUserId();
             var conversationsQuery = from cp in _context.PrivateConversationParticipants
                 where cp.IsActive
                 let lastMessage = _context.PrivateMessageReceipts
-                    .LastOrDefault(r => r.UserIdA == userId && r.UserIdB == cp.RecipientId)
+                    .OrderByDescending(r => r.Message.CreatedAt)
+                    .FirstOrDefault(r => r.UserIdA == userId && r.UserIdB == cp.RecipientId)
                 select new ConversationView
                 {
                     CanSend = true, // TODO
@@ -48,7 +52,7 @@ namespace MapTalkie.Controllers
                         }
                 };
             var conversations = await conversationsQuery.Take(50).ToListAsync();
-            return new ListResponse<ConversationView>(conversations);
+            return conversations;
         }
 
         [HttpPost("pm/{userId}")]
@@ -62,11 +66,18 @@ namespace MapTalkie.Controllers
                 return NotFound();
             if (await _context.BlacklistedUsers.IsBlacklisted(userId, user.Id))
                 return Forbid();
+            if (!await _context.PrivateConversationParticipants.AnyAsync(p =>
+                p.SenderId == user.Id && p.RecipientId == userId))
+                _context.Add(new PrivateConversationParticipant
+                {
+                    SenderId = user.Id,
+                    RecipientId = userId
+                });
             var message = new PrivateMessage
             {
                 Text = body.Text,
                 SenderId = user.Id,
-                Receipts =
+                Receipts = new List<PrivateMessageReceipt>
                 {
                     new PrivateMessageReceipt
                     {
@@ -84,7 +95,9 @@ namespace MapTalkie.Controllers
             };
             _context.Add(message);
             await _context.SaveChangesAsync();
-            ;
+            await _publishEndpoint.Publish(
+                new Domain.Messages.PrivateMessages.PrivateMessage(user.Id, userId, message.Id,
+                    message.Text));
             return message;
         }
 

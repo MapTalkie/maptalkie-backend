@@ -11,6 +11,6 @@ namespace MapTalkie.DB
         [IgnoreDataMember] public User Recipient { get; set; } = default!;
         public DateTime LastMessageReadAt { get; set; } = DateTime.UtcNow;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

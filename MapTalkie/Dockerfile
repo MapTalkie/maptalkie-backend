@@ -1,20 +1,24 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
+﻿FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
 WORKDIR /app
 EXPOSE 80
 EXPOSE 443
 
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["./maptalkie-backend.csproj", "."]
-RUN dotnet restore "maptalkie-backend.csproj"
-COPY . .
+COPY [".", "."]
+COPY ["./MapTalkie.DB", "./"]
+RUN dotnet restore "./MapTalkie/MapTalkie.csproj"
+RUN dotnet restore "./MapTalkie.DB/MapTalkie.DB.csproj"
+
+WORKDIR /src/MapTalkie
 RUN mkdir -p /app/build
-RUN dotnet build "maptalkie-backend.csproj" -c Release -o /app/build
+RUN dotnet build "MapTalkie.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "maptalkie-backend.csproj" -c Release -o /app/publish
+RUN dotnet publish "MapTalkie.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "maptalkie-backend.dll"]
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENTRYPOINT ["dotnet", "MapTalkie.dll"]

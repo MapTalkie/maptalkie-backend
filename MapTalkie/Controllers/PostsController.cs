@@ -95,7 +95,7 @@ namespace MapTalkie.Controllers
             {
                 UserId = user.Id,
                 IsOriginalLocation = newPost.IsOriginalLocation,
-                Location = newPost.Location,
+                Location = MapConvert.ToMercator(newPost.Location),
                 Text = newPost.Text
             };
             _context.Add(post);

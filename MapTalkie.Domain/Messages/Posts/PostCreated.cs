@@ -1,5 +1,7 @@
 using System;
+using MapTalkie.Domain.Utils.JsonConverters;
 using NetTopologySuite.Geometries;
+using Newtonsoft.Json;
 
 namespace MapTalkie.Domain.Messages.Posts
 {
@@ -7,5 +9,6 @@ namespace MapTalkie.Domain.Messages.Posts
         DateTime CreatedAt,
         long PostId,
         string UserId,
-        Point Location) : PostMessage(PostId, UserId, Location);
+        [property: JsonConverter(typeof(PointJsonConverter))]
+        Point Location);
 }
