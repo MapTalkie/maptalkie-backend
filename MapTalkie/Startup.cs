@@ -40,12 +40,16 @@ namespace MapTalkie
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            var useHttps = Configuration.GetValue<bool>("UseHttps", true);
+
             if (env.IsDevelopment())
                 app.UseDeveloperExceptionPage();
-            else
+            else if (useHttps)
                 app.UseHsts();
 
-            app.UseHttpsRedirection();
+            if (useHttps)
+                app.UseHttpsRedirection();
+
             app.UseRouting();
             app.UseHealthChecks("/health");
             // на будущее: UseCors должно стоять до UseAuthorization, чтобы ASP.NET не пытался 

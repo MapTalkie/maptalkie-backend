@@ -6,7 +6,8 @@ services:
     volumes:
       - /etc/letsencrypt/live/api.maptalkie.live:/certs
     ports:
-      - "80:8080"
+      - "80:80"
+      - "443:443"
   rabbitmq-service:
     image: rabbitmq:3.9.11-management
     ports:
@@ -22,11 +23,15 @@ services:
     volumes:
       - maptalkie-postgres-data:/var/lib/postgresql/data
   maptalkie-api:
+    depends_on:
+      - rabbitmq-service
+      - postgis-service
     build:
       context: .
       dockerfile: MapTalkie/Dockerfile
     environment:
-      ASPNETCORE_URLS: https://*:80
+      ASPNETCORE_URLS: http://*:80
+      UseHttps: false # потому что мы используем nginx
       CorsSettings__Origins__0: http://localhost:3000
       CorsSettings__Origins__1: https://localhost:3000
       ConnectionStrings__Postgres: "Host=postgis-service;Database=maptalkie_prod;Username=admin;Password=donttellanyone"

@@ -53,7 +53,7 @@ namespace MapTalkie
                 {
                     context.HostingEnvironment.EnvironmentName = env;
                     cfg.Sources.Clear();
-                    context.Configuration = configuration;
+                    cfg.AddConfiguration(configuration);
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
