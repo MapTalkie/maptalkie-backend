@@ -1,14 +1,13 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
 WORKDIR /app
-EXPOSE 80
-EXPOSE 443
+EXPOSE 5001
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["./MapTalkie", "./"]
-COPY ["./MapTalkie.DB", "./"]
+COPY ["MapTalkie", "MapTalkie"]
+COPY ["MapTalkie.DB", "MapTalkie.DB"]
+COPY ["MapTalkie.Domain", "MapTalkie.Domain"]
 RUN dotnet restore "./MapTalkie/MapTalkie.csproj"
-RUN dotnet restore "./MapTalkie.DB/MapTalkie.DB.csproj"
 
 WORKDIR /src/MapTalkie
 RUN mkdir -p /app/build
@@ -21,4 +20,6 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV UseHttps=false
+ENV ASPNETCORE_URLS=http://*:5001
 ENTRYPOINT ["dotnet", "MapTalkie.dll"]
