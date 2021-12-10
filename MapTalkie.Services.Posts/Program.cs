@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace MapTalkie.Services.Posts
 {
@@ -14,16 +15,25 @@ namespace MapTalkie.Services.Posts
     {
         private static void Main(string[] args)
         {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Development;
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json")
+                .AddJsonFile($"appsettings.{env}.json")
+                .AddEnvironmentVariables()
+                .AddCommandLine(args)
+                .Build();
+
             var builder = new HostBuilder()
-                .ConfigureAppConfiguration((context, config) =>
+                .ConfigureLogging(logging => { logging.AddConsole(); })
+                .ConfigureAppConfiguration((context, cfg) =>
                 {
-                    config.AddJsonFile("appsettings.json", true);
-                    config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", true);
-                    config.AddEnvironmentVariables();
-                    config.AddCommandLine(args);
+                    context.HostingEnvironment.EnvironmentName = env;
+                    cfg.Sources.Clear();
+                    cfg.AddConfiguration(configuration);
                 })
                 .ConfigureServices((context, services) =>
                 {
+                    services.AddLogging();
                     services.AddDbContext<AppDbContext>(options =>
                     {
                         options.UseNpgsql(context.Configuration.GetConnectionString("Postgres"),
@@ -42,6 +52,7 @@ namespace MapTalkie.Services.Posts
                         {
                             cfg.UseMessageScheduler(schedulerEndpoint);
                             cfg.ConfigureEndpoints(busContext);
+                            cfg.Host(configuration.GetSection("RabbitMQ").GetValue<string>("Host"));
                         });
                     });
                     services.AddHostedService<MassTransitConsoleHostedService>();

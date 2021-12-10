@@ -165,7 +165,7 @@ namespace MapTalkie
                     {
                         var config = configuration.GetSection("RabbitMQ")?.Get<RabbitMQConfiguration>();
                         if (config != null)
-                            cfg.Host(config.Host, h =>
+                            cfg.Host("localhost", h =>
                             {
                                 if (config.Username != null)
                                     h.Username(config.Username);

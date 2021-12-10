@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using MapTalkie.Configuration;
 using MapTalkie.DB;
@@ -7,7 +8,6 @@ using MapTalkie.Domain.Messages.User;
 using MapTalkie.Services.AuthService;
 using MapTalkie.Services.TokenService;
 using MassTransit;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -149,8 +149,8 @@ namespace MapTalkie.Controllers
             return new SignUpResponse { Detail = "User created successfully" };
         }
 
-        [Authorize, HttpGet("check")]
-        public IActionResult IsAuthorized() => NoContent();
+        [HttpGet("is-authorized")]
+        public ActionResult<bool> IsAuthorized() => User.HasClaim(claim => claim.Type == ClaimTypes.NameIdentifier);
 
         public class LoginRequest
         {
