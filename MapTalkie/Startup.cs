@@ -40,14 +40,12 @@ namespace MapTalkie
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            var useHttps = Configuration.GetValue<bool>("UseHttps", true);
-
             if (env.IsDevelopment())
                 app.UseDeveloperExceptionPage();
-            else if (useHttps)
+            else if (Configuration.GetValue("UseHsts", true))
                 app.UseHsts();
 
-            if (useHttps)
+            if (Configuration.GetValue("UseHttpsRedirection", true))
                 app.UseHttpsRedirection();
 
             app.UseRouting();

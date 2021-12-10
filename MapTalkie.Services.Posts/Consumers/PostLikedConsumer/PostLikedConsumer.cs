@@ -16,7 +16,7 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
         private readonly IMemoryCache _cache;
         private readonly AppDbContext _context;
 
-        private long MaxUpdates = 1000;
+        private long MaxUpdates = 100; // пока что пусть будет так
         private long UpdatesCount = 0;
 
         public PostLikedConsumer(AppDbContext context, IMemoryCache cache)

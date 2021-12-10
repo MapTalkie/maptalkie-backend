@@ -19,7 +19,7 @@ using NetTopologySuite.Geometries;
 namespace MapTalkie.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     public class PostsController : AuthorizedController
     {
         private readonly AppDbContext _context;

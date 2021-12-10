@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Controllers
 {
-    [Authorize, ApiController, Route("api/[controller]")]
+    [Authorize, ApiController, Route("[controller]")]
     public class FriendshipController : AuthorizedController
     {
         private readonly IFriendshipService _friendshipService;

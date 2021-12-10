@@ -7,7 +7,7 @@ namespace MapTalkie.Controllers
 {
     [ApiController]
     [Authorize]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     public class ProfileController : AuthorizedController
     {
         private readonly AppDbContext _context;

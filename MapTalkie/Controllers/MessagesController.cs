@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MapTalkie.Controllers
 {
-    [Authorize, ApiController, Route("api/[controller]")]
+    [Authorize, ApiController, Route("[controller]")]
     public class MessagesController : AuthorizedController
     {
         private readonly IPublishEndpoint _publishEndpoint;

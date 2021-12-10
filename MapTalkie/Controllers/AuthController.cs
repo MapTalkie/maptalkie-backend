@@ -16,7 +16,7 @@ using Microsoft.Extensions.Options;
 namespace MapTalkie.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     public class AuthController : Controller
     {
         private readonly IOptions<AuthenticationSettings> _authenticationSettings;
