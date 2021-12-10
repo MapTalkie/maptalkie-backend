@@ -8,6 +8,7 @@ using MapTalkie.DB.Context;
 using MapTalkie.Domain.Utils.JsonConverters;
 using MapTalkie.Services.AuthService;
 using MapTalkie.Services.FriendshipService;
+using MapTalkie.Services.GeoService;
 using MapTalkie.Services.TokenService;
 using MapTalkie.Utils.Binders;
 using MassTransit;
@@ -30,12 +31,14 @@ namespace MapTalkie
             services
                 .AddScoped<IAuthService, AuthService>()
                 .AddScoped<IFriendshipService, FriendshipService>()
+                .AddScoped<IGeoService, TwoGISGeoService>()
                 .AddScoped<ITokenService, TokenService>();
         }
 
         public static void ConfigureAll(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
+            services.Configure<TwoGisOptions>(configuration.GetSection(nameof(TwoGisOptions)));
             services.Configure<AuthenticationSettings>(configuration.GetSection(nameof(AuthenticationSettings)));
         }
 
@@ -173,11 +176,17 @@ namespace MapTalkie
                                 if (config.Password != null)
                                     h.Username(config.Password);
                             });
+
+                        cfg.ConfigureEndpoints(context);
                     });
                 }
                 else
                 {
-                    options.UsingRabbitMq(cfg.ConfigureRabbitMq);
+                    options.UsingRabbitMq(((context, configurator) =>
+                    {
+                        cfg.ConfigureRabbitMq(context, configurator);
+                        configurator.ConfigureEndpoints(context);
+                    }));
                 }
             });
             services.AddMassTransitHostedService();

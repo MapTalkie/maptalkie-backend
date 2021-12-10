@@ -4,6 +4,7 @@ using System.IO;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace MapTalkie
 {
@@ -49,6 +50,7 @@ namespace MapTalkie
             var configuration = configurationBuilder.Build();
 
             return Host.CreateDefaultBuilder(args)
+                .ConfigureLogging(logging => { logging.AddConsole(); })
                 .ConfigureAppConfiguration((context, cfg) =>
                 {
                     context.HostingEnvironment.EnvironmentName = env;

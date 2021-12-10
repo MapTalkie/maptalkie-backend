@@ -46,7 +46,7 @@ namespace MapTalkie.Tests.Integration.Fixtures
                 };
             });
             services.AddAppServices();
-            services.AddAppCors(Env);
+            services.AddAppCors(Configuration);
             services.AddAppDbContext(() => _databaseConnectionString);
             services.AddAppSignalR();
             // services.AddAppQuartz();

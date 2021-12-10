@@ -103,7 +103,7 @@ namespace MapTalkie.Hubs
                 if (oldPoly != null)
                     await Groups.RemoveFromGroupAsync(
                         Context.ConnectionId,
-                        MapTalkieGroups.AreaUpdatesPrefix + AreaId.FromPolygon(oldPoly).Id);
+                        MapTalkieGroups.AreaUpdatesPrefix + AreaId.FromPolygon(oldPoly));
 
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,

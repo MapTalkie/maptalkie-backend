@@ -31,6 +31,7 @@ services:
       context: .
       dockerfile: MapTalkie.Services.Posts/Dockerfile
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       RabbitMQ__Host: rabbitmq-service
       ConnectionStrings__Postgres: "Host=postgis-service;Database=maptalkie_prod;Username=admin;Password=donttellanyone"
   maptalkie-api:
@@ -41,6 +42,7 @@ services:
       context: .
       dockerfile: MapTalkie/Dockerfile
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       CorsSettings__Origins__0: http://localhost:3000
       CorsSettings__Origins__1: https://localhost:3000
       CorsSettings__Origins__2: http://maptalkie.live
@@ -50,5 +52,6 @@ services:
       Kestrel__Endpoints__Http__Url: http://0.0.0.0:8880
       UseHsts: 'false'
       UseHttpsRedirection: 'false'
+      IsBehindProxy: 'true'
 volumes:
   maptalkie-postgres-data:

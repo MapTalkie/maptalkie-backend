@@ -24,7 +24,11 @@ namespace MapTalkie.Services.Posts
                 .Build();
 
             var builder = new HostBuilder()
-                .ConfigureLogging(logging => { logging.AddConsole(); })
+                .ConfigureLogging(logging =>
+                {
+                    logging.AddConfiguration(configuration.GetSection("Logging"));
+                    logging.AddConsole();
+                })
                 .ConfigureAppConfiguration((context, cfg) =>
                 {
                     context.HostingEnvironment.EnvironmentName = env;

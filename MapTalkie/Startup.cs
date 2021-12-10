@@ -2,6 +2,7 @@ using MapTalkie.DB.Context;
 using MapTalkie.Hubs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,6 +49,12 @@ namespace MapTalkie
 
             if (Configuration.GetValue("UseHttpsRedirection", true))
                 app.UseHttpsRedirection();
+
+            if (Configuration.GetValue("IsBehindProxy", false))
+                app.UseForwardedHeaders(new ForwardedHeadersOptions()
+                {
+                    ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                });
 
             app.UseRouting();
             app.UseHealthChecks("/health");
