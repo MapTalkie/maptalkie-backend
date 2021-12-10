@@ -18,7 +18,9 @@
     "maptalkie-backend": {
       "commandName": "Project",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "CorsSettings__Origins__0": "http://localhost:3000",
+        "CorsSettings__Origins__1": "https://maptalkie.live"
       }
     }
   }
