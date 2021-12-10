@@ -23,20 +23,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="appsettings.Development.json">
-            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-        </Content>
-        <Content Include="appsettings.Production.json">
-            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-        </Content>
+        <Folder Include="Internal"/>
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Internal"/>
+        <None Include="appsettings.json" CopyToOutputDirectory="Always"/>
+        <None Include="appsettings.Development.json" CopyToOutputDirectory="Always"/>
+        <None Include="appsettings.Production.json" CopyToOutputDirectory="Always"/>
     </ItemGroup>
 
 </Project>
