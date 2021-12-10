@@ -125,9 +125,9 @@ namespace MapTalkie.Controllers
             if (token == null)
                 return Unauthorized("Refresh token is invalid or expired");
             var user = await _userManager.FindByIdAsync(token.UserId);
-            var newToken = await _authService.RotateToken(token);
+            var newRefreshToken = await _authService.RotateToken(token);
             var accessToken = _tokenService.CreateToken(user);
-            return MakeLoginResponse(accessToken, newToken, hybrid);
+            return MakeLoginResponse(accessToken, newRefreshToken, hybrid);
         }
 
         [HttpPost("signup")]

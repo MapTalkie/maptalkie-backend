@@ -28,7 +28,7 @@ namespace MapTalkie
             services.AddAppControllers();
             services.AddAppMassTransit(Configuration);
             services.AddAppServices();
-            services.AddAppCors(Env);
+            services.AddAppCors(Configuration);
             services.AddAppDbContext(Configuration);
             services.AddAppSignalR();
             // services.AddAppQuartz();

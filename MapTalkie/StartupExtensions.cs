@@ -13,12 +13,10 @@ using MapTalkie.Utils.Binders;
 using MassTransit;
 using MassTransit.ExtensionsDependencyInjectionIntegration;
 using MassTransit.RabbitMqTransport;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Quartz;
@@ -41,26 +39,14 @@ namespace MapTalkie
             services.Configure<AuthenticationSettings>(configuration.GetSection(nameof(AuthenticationSettings)));
         }
 
-        public static void AddAppCors(this IServiceCollection services, IWebHostEnvironment env)
+        public static void AddAppCors(this IServiceCollection services, IConfiguration configuration)
         {
+            var settings = configuration.GetSection<CorsSettings>();
             services.AddCors(options =>
             {
                 options.AddDefaultPolicy(builder =>
                 {
-                    if (env.IsDevelopment())
-                    {
-                        builder.WithOrigins(
-                            "http://localhost:3000", "https://localhost:3000",
-                            "http://localhost:5500", "https://localhost:5500",
-                            "http://127.0.0.1:3000", "https://127.0.0.1:3000",
-                            "http://127.0.0.1:5500", "https://127.0.0.1:5500",
-                            "https://api.maptalkie.live"
-                        );
-                    }
-                    else if (env.IsProduction())
-                    {
-                    }
-
+                    builder.WithOrigins(settings.Origins);
                     builder.AllowCredentials();
                     builder.AllowAnyMethod();
 
@@ -195,39 +181,6 @@ namespace MapTalkie
                 }
             });
             services.AddMassTransitHostedService();
-        }
-
-        public static void InitApp(
-            this IServiceCollection services,
-            IConfiguration configuration,
-            IWebHostEnvironment environment,
-            Action<AppInitializationConfiguration>? configurationFunction = null)
-        {
-            var cfg = new AppInitializationConfiguration();
-            if (configurationFunction != null)
-                configurationFunction(cfg);
-
-            services.ConfigureAll(configuration);
-            services.AddAppServices();
-
-            if (cfg.ConnectionStringFactory != null)
-                services.AddAppDbContext(cfg.ConnectionStringFactory);
-            else
-                services.AddAppDbContext(configuration);
-            services.AddAppIdentity();
-
-            if (cfg.UseControllers)
-                services.AddAppControllers();
-            if (cfg.UseSignalR)
-                services.AddAppSignalR();
-            if (cfg.UseCors)
-                services.AddAppCors(environment);
-
-            services.AddMemoryCache();
-
-            services.AddAppAuthorization(
-                configuration.GetSection<JwtSettings>(),
-                configuration.GetSection<AuthenticationSettings>());
         }
 
         public class MassTransitAppOptions
