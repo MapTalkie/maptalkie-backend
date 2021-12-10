@@ -1,3 +1,4 @@
+using System.Net;
 using MapTalkie.DB.Context;
 using MapTalkie.Hubs;
 using Microsoft.AspNetCore.Builder;
@@ -36,6 +37,17 @@ namespace MapTalkie
             services.AddMemoryCache();
             services.AddAppIdentity();
             services.AddAppAuthorization(Configuration);
+
+            if (Configuration.GetValue("IsBehindProxy", false))
+            {
+                var trustedNetwork = Configuration.GetValue<string>("TrustedNetwork").Split("/");
+                var ipAddress = IPAddress.Parse(trustedNetwork[0]);
+                var length = int.Parse(trustedNetwork[1]);
+                services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.KnownNetworks.Add(new IPNetwork(ipAddress, length));
+                });
+            }
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -51,10 +63,9 @@ namespace MapTalkie
                 app.UseHttpsRedirection();
 
             if (Configuration.GetValue("IsBehindProxy", false))
-                app.UseForwardedHeaders(new ForwardedHeadersOptions()
-                {
-                    ForwardedHeaders = ForwardedHeaders.XForwardedFor
-                });
+            {
+                app.UseForwardedHeaders();
+            }
 
             app.UseRouting();
             app.UseHealthChecks("/health");

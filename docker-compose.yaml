@@ -53,5 +53,12 @@ services:
       UseHsts: 'false'
       UseHttpsRedirection: 'false'
       IsBehindProxy: 'true'
+      TrustedNetwork: '172.177.0.0/16'
 volumes:
   maptalkie-postgres-data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.177.0.0/16
