@@ -82,7 +82,7 @@ namespace MapTalkie.Controllers
                         HttpOnly = true,
                         SameSite = SameSiteMode.None,
                         Secure = true,
-                        Expires = DateTimeOffset.Now.AddDays(10)
+                        Expires = token.ExpiresAt
                     });
 
                 Response.Cookies.Append(
@@ -94,7 +94,7 @@ namespace MapTalkie.Controllers
                         SameSite = SameSiteMode.None,
                         Secure = true,
                         Path = new Uri(Url.RouteUrl("AuthHybridTokenRefresh")!).AbsolutePath,
-                        Expires = expiresAt
+                        Expires = DateTimeOffset.Now + _authenticationSettings.Value.RefreshTokenLifetime
                     });
             }
 
@@ -102,8 +102,8 @@ namespace MapTalkie.Controllers
             {
                 Token = hybrid ? token.TokenBase : token.FullToken,
                 RefreshToken = hybrid ? null : refreshToken.Token,
-                ExpiresAt = expiresAt.UtcDateTime,
-                ExpiresAtTimestamp = (int)(expiresAt.UtcDateTime - new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds
+                ExpiresAt = token.ExpiresAt,
+                ExpiresAtTimestamp = (int)(token.ExpiresAt - new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds
             };
         }
 

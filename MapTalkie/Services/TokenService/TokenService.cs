@@ -28,7 +28,7 @@ namespace MapTalkie.Services.TokenService
         {
             var token = GenerateToken(user, options);
             var tokenString = _tokenHandler.WriteToken(token);
-            return new JwtTokenResult(tokenString);
+            return new JwtTokenResult(tokenString, DateTime.Now + options.Lifetime);
         }
 
         public JwtTokenResult CreateToken(User user)
