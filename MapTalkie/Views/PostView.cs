@@ -1,6 +1,7 @@
 using System;
 using System.Linq.Expressions;
 using MapTalkie.DB;
+using NetTopologySuite.Geometries;
 
 namespace MapTalkie.Views
 {
@@ -13,10 +14,11 @@ namespace MapTalkie.Views
         int Comments,
         int Shares,
         string Text,
-        bool IsOriginalLocation)
+        bool IsOriginalLocation,
+        Point Location)
     {
         public static Expression<Func<Post, PostView>> Projection => post => new PostView(
             post.Id, post.UserId, post.User.UserName, post.CreatedAt, post.CachedLikesCount, post.CachedCommentsCount,
-            post.CachedSharesCount, post.Text, post.IsOriginalLocation);
+            post.CachedSharesCount, post.Text, post.IsOriginalLocation, post.Location);
     }
 }
