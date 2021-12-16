@@ -4,6 +4,7 @@ using MapTalkie.Domain.Messages.Posts;
 using MapTalkie.Domain.Messages.PrivateMessages;
 using MapTalkie.Domain.Utils;
 using MapTalkie.Hubs;
+using MapTalkie.Views;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 
@@ -47,7 +48,8 @@ namespace MapTalkie.Consumers
                         {
                             Id = p.PostId,
                             p.UserId,
-                            Location = MapConvert.ToLatLon(p.Location)
+                            Location = MapConvert.ToLatLon(p.Location),
+                            Preview = p.PostTextPreview
                         }).ToList()
                     });
         }
@@ -60,7 +62,16 @@ namespace MapTalkie.Consumers
             {
                 Id = context.Message.MessageId,
                 context.Message.Text,
-                context.Message.RecipientId,
+                Recipient = new UserInMessageView
+                {
+                    Id = context.Message.RecipientId,
+                    UserName = context.Message.RecipientUsername
+                },
+                Sender = new UserInMessageView
+                {
+                    Id = context.Message.SenderId,
+                    UserName = context.Message.SenderUsername
+                },
                 context.Message.SenderId
             });
         }

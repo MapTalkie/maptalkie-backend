@@ -46,6 +46,7 @@ namespace MapTalkie
                 services.Configure<ForwardedHeadersOptions>(options =>
                 {
                     options.KnownNetworks.Add(new IPNetwork(ipAddress, length));
+                    options.ForwardedHeaders = ForwardedHeaders.All;
                 });
             }
         }

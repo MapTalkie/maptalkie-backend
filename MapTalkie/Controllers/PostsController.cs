@@ -100,7 +100,9 @@ namespace MapTalkie.Controllers
             };
             _context.Add(post);
             await _context.SaveChangesAsync();
-            await _publishEndpoint.Publish(new PostCreated(post.CreatedAt, post.Id, post.UserId, post.Location));
+            var postPreview = post.Text.Length > 50 ? (post.Text.Substring(0, 47) + "...") : post.Text;
+            await _publishEndpoint.Publish(
+                new PostCreated(post.CreatedAt, post.Id, post.UserId, postPreview, post.Location));
             return Created(
                 Url.RouteUrl("GetPost", new { postId = post.Id })!,
                 new { Id = post.Id.ToString() });
@@ -197,7 +199,7 @@ namespace MapTalkie.Controllers
             if (body.ReplyTo != null)
             {
                 if (!await _context.PostComments
-                    .AnyAsync(c => c.PostId == postId && c.Id == body.ReplyTo && c.Available))
+                        .AnyAsync(c => c.PostId == postId && c.Id == body.ReplyTo && c.Available))
                     return NotFound($"Comment with id={body.ReplyTo} not found or belongs to a different post");
             }
 

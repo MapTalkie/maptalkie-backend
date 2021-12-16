@@ -71,6 +71,7 @@ namespace MapTalkie.Controllers
         private ActionResult<LoginResponse> MakeLoginResponse(JwtTokenResult token, IRefreshTokenResult refreshToken,
             bool hybrid)
         {
+            var expiresAt = DateTimeOffset.Now + _authenticationSettings.Value.RefreshTokenLifetime;
             if (hybrid)
             {
                 Response.Cookies.Append(
@@ -93,14 +94,16 @@ namespace MapTalkie.Controllers
                         SameSite = SameSiteMode.None,
                         Secure = true,
                         Path = new Uri(Url.RouteUrl("AuthHybridTokenRefresh")!).AbsolutePath,
-                        Expires = DateTimeOffset.Now + _authenticationSettings.Value.RefreshTokenLifetime
+                        Expires = expiresAt
                     });
             }
 
             return new LoginResponse
             {
                 Token = hybrid ? token.TokenBase : token.FullToken,
-                RefreshToken = hybrid ? null : refreshToken.Token
+                RefreshToken = hybrid ? null : refreshToken.Token,
+                ExpiresAt = expiresAt.UtcDateTime,
+                ExpiresAtTimestamp = (int)(expiresAt.UtcDateTime - new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds
             };
         }
 
@@ -163,6 +166,8 @@ namespace MapTalkie.Controllers
         {
             public string Token { get; set; } = string.Empty;
             public string? RefreshToken { get; set; } = string.Empty;
+            public DateTime ExpiresAt { get; set; }
+            public int ExpiresAtTimestamp { get; set; }
         }
 
         public class SignUpRequest

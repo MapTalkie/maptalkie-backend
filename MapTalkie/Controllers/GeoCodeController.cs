@@ -10,7 +10,7 @@ namespace MapTalkie.Controllers
     public class GeoCodeController : Controller
     {
         [HttpGet("location")]
-        public async Task<ActionResult<Point>> GetLocation(
+        public async Task<ActionResult<dynamic>> GetLocation(
             [FromServices] IGeoService geoService,
             [FromServices] IMemoryCache cache)
         {
@@ -30,7 +30,11 @@ namespace MapTalkie.Controllers
                 point = geoService.GetDefaultLocation();
             }
 
-            return point;
+            return new
+            {
+                Location = point,
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString()
+            };
         }
     }
 }

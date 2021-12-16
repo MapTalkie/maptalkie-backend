@@ -9,6 +9,7 @@ namespace MapTalkie.Domain.Messages.Posts
         DateTime CreatedAt,
         long PostId,
         string UserId,
+        string PostTextPreview,
         [property: JsonConverter(typeof(PointJsonConverter))]
         Point Location);
 }

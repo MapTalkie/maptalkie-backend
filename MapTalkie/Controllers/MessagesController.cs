@@ -61,13 +61,16 @@ namespace MapTalkie.Controllers
             [FromBody] NewMessage body)
         {
             var user = await RequireUser();
-            var recipient = await _context.Users.Where(u => u.Id == userId).FirstOrDefaultAsync();
-            if (recipient == null)
+            var recipientUsername = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => u.UserName)
+                .FirstOrDefaultAsync();
+            if (recipientUsername == null)
                 return NotFound();
             if (await _context.BlacklistedUsers.IsBlacklisted(userId, user.Id))
                 return Forbid();
             if (!await _context.PrivateConversationParticipants.AnyAsync(p =>
-                p.SenderId == user.Id && p.RecipientId == userId))
+                    p.SenderId == user.Id && p.RecipientId == userId))
                 _context.Add(new PrivateConversationParticipant
                 {
                     SenderId = user.Id,
@@ -96,8 +99,10 @@ namespace MapTalkie.Controllers
             _context.Add(message);
             await _context.SaveChangesAsync();
             await _publishEndpoint.Publish(
-                new Domain.Messages.PrivateMessages.PrivateMessage(user.Id, userId, message.Id,
-                    message.Text));
+                new Domain.Messages.PrivateMessages.PrivateMessage(
+                    user.Id, user.UserName,
+                    userId, recipientUsername,
+                    message.Id, message.Text));
             return message;
         }
 
