@@ -203,6 +203,9 @@ namespace MapTalkie.Controllers
                     return NotFound($"Comment with id={body.ReplyTo} not found or belongs to a different post");
             }
 
+            _context.Add(comment);
+            await _context.SaveChangesAsync();
+
             return Ok();
         }
 
