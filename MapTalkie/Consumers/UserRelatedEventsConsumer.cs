@@ -71,14 +71,13 @@ namespace MapTalkie.Consumers
                 {
                     Id = context.Message.SenderId,
                     UserName = context.Message.SenderUsername
-                },
-                context.Message.SenderId
+                }
             });
         }
 
         public async Task Consume(ConsumeContext<PrivateMessageDeleted> context)
         {
-            await _hubContext.Clients.Group(MapTalkieGroups.Messages + context.Message.SenderId).SendAsync(
+            await _hubContext.Clients.Group(MapTalkieGroups.ConversationPrefix + context.Message.SenderId).SendAsync(
                 UserHub.DirectMessageDeleted, new
                 {
                     context.Message.MessageId,
