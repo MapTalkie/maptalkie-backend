@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MapTalkie.DB.Context;
 using MapTalkie.Domain.Messages.Posts;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
@@ -36,7 +37,8 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
                 Interlocked.And(ref _updatesCount, 0);
                 // тут может произойти race-condition, но я просто это проигнорирую,
                 // потому что это функция вызывается редко
-                await context.Send(new PostRankDecayRefresher.RefreshRankDecay(.0002, .25));
+                await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"call update_exp_ranking_decay({0.0002}, {0.25});");
             }
 
             _logger.LogDebug("Consumed {0} with {1} messages inside", nameof(Batch<PostEngagement>),
