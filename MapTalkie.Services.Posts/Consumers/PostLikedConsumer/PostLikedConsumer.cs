@@ -15,7 +15,7 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
         private readonly AppDbContext _context;
         private readonly ILogger<PostLikedConsumer> _logger;
         private long _updatesCount = 0;
-        private DateTime LastRankDecay = DateTime.Now;
+        private DateTime LastRankDecay = DateTime.MinValue;
 
         private long MaxUpdates = 100; // пока что пусть будет так
 
