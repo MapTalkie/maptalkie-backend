@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,9 +11,11 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
 {
     public class PostLikedConsumer : IConsumer<Batch<PostEngagement>>
     {
+        private static readonly TimeSpan MaxRankDecayTimeout = TimeSpan.FromHours(1);
         private readonly AppDbContext _context;
         private readonly ILogger<PostLikedConsumer> _logger;
         private long _updatesCount = 0;
+        private DateTime LastRankDecay = DateTime.Now;
 
         private long MaxUpdates = 100; // пока что пусть будет так
 
@@ -27,8 +30,9 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
             await PublishEngagement(context);
             Interlocked.Add(ref _updatesCount, context.Message.Length);
 
-            if (Interlocked.Read(ref _updatesCount) > MaxUpdates)
+            if (Interlocked.Read(ref _updatesCount) > MaxUpdates || LastRankDecay + MaxRankDecayTimeout < DateTime.Now)
             {
+                LastRankDecay = DateTime.Now;
                 Interlocked.And(ref _updatesCount, 0);
                 // тут может произойти race-condition, но я просто это проигнорирую,
                 // потому что это функция вызывается редко
@@ -44,8 +48,9 @@ namespace MapTalkie.Services.Posts.Consumers.PostLikedConsumer
             var postIds = context.Message.Select(c => c.Message.PostId).Distinct().ToList();
 
             foreach (var dbEngagement in _context.Posts
-                .Where(p => postIds.Contains(p.Id) && p.Available)
-                .Select(p => new { p.Id, p.Location, p.CachedCommentsCount, p.CachedLikesCount, p.CachedSharesCount }))
+                         .Where(p => postIds.Contains(p.Id) && p.Available)
+                         .Select(p => new
+                             { p.Id, p.Location, p.CachedCommentsCount, p.CachedLikesCount, p.CachedSharesCount }))
             {
                 await context.Publish(new EngagementUpdate
                 {

@@ -11,10 +11,11 @@ namespace MapTalkie.Domain.Popularity
         public const double SharesMultiplier = 6;
         public const double DecayCoefficient = .25;
         public const double MinDecay = .0001;
+        public const double DefaultRawRank = 1.0;
 
         public static readonly Expression<Func<Post, double>> PopularityRankProjection =
             p => p.RankDecayFactor * (p.CachedCommentsCount * CommentsMultiplier +
                                       p.CachedLikesCount * LikesMultiplier +
-                                      p.CachedSharesCount * SharesMultiplier);
+                                      p.CachedSharesCount * SharesMultiplier + DefaultRawRank);
     }
 }

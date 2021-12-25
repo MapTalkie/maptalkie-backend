@@ -1,5 +1,6 @@
 ﻿using System;
 using MapTalkie.DB.Context;
+using MapTalkie.Services.Posts.Consumers;
 using MapTalkie.Services.Posts.Consumers.PostCreatedConsumer;
 using MapTalkie.Services.Posts.Consumers.PostLikedConsumer;
 using MassTransit;
@@ -48,6 +49,7 @@ namespace MapTalkie.Services.Posts
 
                     services.AddMassTransit(x =>
                     {
+                        x.AddConsumer<PostRankDecayRefresher>();
                         x.AddConsumer<PostLikedConsumer>(typeof(PostLikedConsumerDefinition));
                         x.AddConsumer<PostCreatedConsumer>(typeof(PostCreatedConsumerDefinition));
                         x.AddMessageScheduler(schedulerEndpoint);
