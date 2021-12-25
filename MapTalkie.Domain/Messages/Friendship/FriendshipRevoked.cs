@@ -1,7 +1,6 @@
-namespace MapTalkie.Domain.Messages.Friendship
+namespace MapTalkie.Domain.Messages.Friendship;
+
+public class FriendshipRevoked : FriendshipMessage
 {
-    public class FriendshipRevoked : FriendshipMessage
-    {
-        public string RevokedById { get; set; }
-    }
+    public string RevokedById { get; set; }
 }

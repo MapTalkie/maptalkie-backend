@@ -6,51 +6,50 @@ using MapTalkie.Utils.ErrorHandling;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 
-namespace MapTalkie.Hubs
+namespace MapTalkie.Hubs;
+
+public class AuthorizedHub : Hub
 {
-    public class AuthorizedHub : Hub
+    private readonly UserManager<User> _userManager;
+    private User? _user;
+    private DateTime _userCachedAt = DateTime.MinValue;
+    protected TimeSpan UserCacheDuration = TimeSpan.FromMinutes(1);
+
+    public AuthorizedHub(UserManager<User> userManager)
     {
-        private readonly UserManager<User> _userManager;
-        private User? _user;
-        private DateTime _userCachedAt = DateTime.MinValue;
-        protected TimeSpan UserCacheDuration = TimeSpan.FromMinutes(1);
+        _userManager = userManager;
+    }
 
-        public AuthorizedHub(UserManager<User> userManager)
+    private string? UserIdPrivate
+    {
+        get
         {
-            _userManager = userManager;
-        }
-
-        private string? UserIdPrivate
-        {
-            get
+            try
             {
-                try
-                {
-                    return _userManager.GetUserId(Context.User);
-                }
-                catch
-                {
-                    return null;
-                }
+                return _userManager.GetUserId(Context.User);
+            }
+            catch
+            {
+                return null;
             }
         }
+    }
 
-        protected string UserId => UserIdPrivate ?? throw new HttpException(HttpStatusCode.Unauthorized);
+    protected string UserId => UserIdPrivate ?? throw new HttpException(HttpStatusCode.Unauthorized);
 
-        protected async Task<User> GetUser()
+    protected async Task<User> GetUser()
+    {
+        if (_user == null || _userCachedAt + UserCacheDuration < DateTime.Now)
         {
-            if (_user == null || _userCachedAt + UserCacheDuration < DateTime.Now)
-            {
-                _user = await GetUserImpl();
-                _userCachedAt = DateTime.Now;
-            }
-
-            return _user;
+            _user = await GetUserImpl();
+            _userCachedAt = DateTime.Now;
         }
 
-        private Task<User> GetUserImpl()
-        {
-            return _userManager.FindByIdAsync(UserId);
-        }
+        return _user;
+    }
+
+    private Task<User> GetUserImpl()
+    {
+        return _userManager.FindByIdAsync(UserId);
     }
 }

@@ -1,7 +1,8 @@
-namespace MapTalkie.Configuration
+using System;
+
+namespace MapTalkie.Configuration;
+
+public class CorsSettings
 {
-    public class CorsSettings
-    {
-        public string[] Origins { get; set; } = System.Array.Empty<string>();
-    }
+    public string[] Origins { get; set; } = Array.Empty<string>();
 }

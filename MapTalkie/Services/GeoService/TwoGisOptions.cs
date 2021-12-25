@@ -1,7 +1,6 @@
-namespace MapTalkie.Services.GeoService
+namespace MapTalkie.Services.GeoService;
+
+public class TwoGisOptions
 {
-    public class TwoGisOptions
-    {
-        public string Token { get; set; } = string.Empty;
-    }
+    public string Token { get; set; } = string.Empty;
 }

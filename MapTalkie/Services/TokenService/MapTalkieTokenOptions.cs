@@ -1,9 +1,8 @@
 using System;
 
-namespace MapTalkie.Services.TokenService
+namespace MapTalkie.Services.TokenService;
+
+public class MapTalkieTokenOptions
 {
-    public class MapTalkieTokenOptions
-    {
-        public TimeSpan Lifetime { get; set; }
-    }
+    public TimeSpan Lifetime { get; set; }
 }

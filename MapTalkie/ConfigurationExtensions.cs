@@ -1,6 +1,5 @@
-namespace MapTalkie
+namespace MapTalkie;
+
+public static class ConfigurationExtensions
 {
-    public static class ConfigurationExtensions
-    {
-    }
 }

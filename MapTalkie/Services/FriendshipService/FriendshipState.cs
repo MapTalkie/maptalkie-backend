@@ -1,10 +1,9 @@
-namespace MapTalkie.Services.FriendshipService
+namespace MapTalkie.Services.FriendshipService;
+
+public enum FriendshipState : byte
 {
-    public enum FriendshipState : byte
-    {
-        None = 0,
-        RequestPending = 1,
-        IncomingRequest = 2,
-        Mutual = RequestPending | IncomingRequest
-    }
+    None = 0,
+    RequestPending = 1,
+    IncomingRequest = 2,
+    Mutual = RequestPending | IncomingRequest
 }

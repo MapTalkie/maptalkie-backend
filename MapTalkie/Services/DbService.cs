@@ -1,14 +1,13 @@
 using MapTalkie.DB.Context;
 
-namespace MapTalkie.Services
-{
-    public class DbService
-    {
-        protected readonly AppDbContext DbContext;
+namespace MapTalkie.Services;
 
-        public DbService(AppDbContext context)
-        {
-            DbContext = context;
-        }
+public class DbService
+{
+    protected readonly AppDbContext DbContext;
+
+    public DbService(AppDbContext context)
+    {
+        DbContext = context;
     }
 }

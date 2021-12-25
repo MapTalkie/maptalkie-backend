@@ -1,10 +1,9 @@
 using System.Threading.Tasks;
 
-namespace MapTalkie.Services.SignalRStateService
+namespace MapTalkie.Services.SignalRStateService;
+
+public interface ISignalRStateService
 {
-    public interface ISignalRStateService
-    {
-        Task AddConnection(string userId, string connectionId);
-        Task RemoveConnection(string connectionId);
-    }
+    Task AddConnection(string userId, string connectionId);
+    Task RemoveConnection(string connectionId);
 }

@@ -1,6 +1,5 @@
-namespace MapTalkie.Domain.Messages.Friendship
+namespace MapTalkie.Domain.Messages.Friendship;
+
+public class FriendshipEstablished : FriendshipMessage
 {
-    public class FriendshipEstablished : FriendshipMessage
-    {
-    }
 }

@@ -1,7 +1,6 @@
-namespace MapTalkie.Tests.Integration.Fixtures
+namespace MapTalkie.Tests.Integration.Fixtures;
+
+public static class IntegrationTestsFixtures
 {
-    public static class IntegrationTestsFixtures
-    {
-        public const string Server = "Test server collection";
-    }
+    public const string Server = "Test server collection";
 }

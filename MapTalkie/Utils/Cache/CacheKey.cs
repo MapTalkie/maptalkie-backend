@@ -1,50 +1,49 @@
 using System;
 
-namespace MapTalkie.Utils.Cache
+namespace MapTalkie.Utils.Cache;
+
+public class CacheKey
 {
-    public class CacheKey
+    private readonly object[] _parts;
+
+    public CacheKey(params object[] parts)
     {
-        private readonly object[] _parts;
+        _parts = parts;
+    }
 
-        public CacheKey(params object[] parts)
+    public CacheKey this[object firstSubKey, params object[] subKeys]
+    {
+        get
         {
-            _parts = parts;
+            var newParts = new object[subKeys.Length + _parts.Length + 1];
+            Array.Copy(_parts, newParts, _parts.Length);
+            Array.Copy(subKeys, 0, newParts, _parts.Length + 1, subKeys.Length);
+            newParts[_parts.Length] = firstSubKey;
+            return new CacheKey(newParts);
         }
+    }
 
-        public CacheKey this[object firstSubKey, params object[] subKeys]
-        {
-            get
-            {
-                var newParts = new object[subKeys.Length + _parts.Length + 1];
-                Array.Copy(_parts, newParts, _parts.Length);
-                Array.Copy(subKeys, 0, newParts, _parts.Length + 1, subKeys.Length);
-                newParts[_parts.Length] = firstSubKey;
-                return new CacheKey(newParts);
-            }
-        }
+    public static bool operator ==(CacheKey left, CacheKey right)
+    {
+        if (left._parts.Length != right._parts.Length)
+            return false;
 
-        public static bool operator ==(CacheKey left, CacheKey right)
-        {
-            if (left._parts.Length != right._parts.Length)
+        for (var i = 0; i < left._parts.Length; i++)
+            if (left._parts[i] != right._parts[i])
                 return false;
+        return true;
+    }
 
-            for (var i = 0; i < left._parts.Length; i++)
-                if (left._parts[i] != right._parts[i])
-                    return false;
-            return true;
-        }
+    public static bool operator !=(CacheKey left, CacheKey right)
+    {
+        return !(left == right);
+    }
 
-        public static bool operator !=(CacheKey left, CacheKey right)
-        {
-            return !(left == right);
-        }
+    public override int GetHashCode()
+    {
+        var hashCode = new HashCode();
+        foreach (var o in _parts) hashCode.Add(o);
 
-        public override int GetHashCode()
-        {
-            var hashCode = new HashCode();
-            foreach (var o in _parts) hashCode.Add(o);
-
-            return hashCode.ToHashCode();
-        }
+        return hashCode.ToHashCode();
     }
 }

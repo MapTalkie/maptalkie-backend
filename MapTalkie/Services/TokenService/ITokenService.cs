@@ -1,14 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using MapTalkie.DB;
 
-namespace MapTalkie.Services.TokenService
+namespace MapTalkie.Services.TokenService;
+
+public interface ITokenService
 {
-    public interface ITokenService
-    {
-        JwtSecurityToken GenerateToken(User user, MapTalkieTokenOptions options);
+    JwtSecurityToken GenerateToken(User user, MapTalkieTokenOptions options);
 
-        JwtTokenResult CreateToken(User user, MapTalkieTokenOptions options);
+    JwtTokenResult CreateToken(User user, MapTalkieTokenOptions options);
 
-        JwtTokenResult CreateToken(User user);
-    }
+    JwtTokenResult CreateToken(User user);
 }

@@ -6,53 +6,52 @@ using MapTalkie.DB;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace MapTalkie.Services.TokenService
+namespace MapTalkie.Services.TokenService;
+
+public class TokenService : ITokenService
 {
-    public class TokenService : ITokenService
+    private readonly JwtSettings _jwtSettings;
+    private readonly JwtSecurityTokenHandler _tokenHandler = new();
+
+    public TokenService(IOptions<JwtSettings> jwtSettings)
     {
-        private readonly JwtSettings _jwtSettings;
-        private readonly JwtSecurityTokenHandler _tokenHandler = new();
+        _jwtSettings = jwtSettings.Value;
+    }
 
-        public TokenService(IOptions<JwtSettings> jwtSettings)
-        {
-            _jwtSettings = jwtSettings.Value;
-        }
+    public JwtSecurityToken GenerateToken(User user, MapTalkieTokenOptions options)
+    {
+        var desc = MakeTokenDescriptor(user, options);
+        return _tokenHandler.CreateJwtSecurityToken(desc);
+    }
 
-        public JwtSecurityToken GenerateToken(User user, MapTalkieTokenOptions options)
-        {
-            var desc = MakeTokenDescriptor(user, options);
-            return _tokenHandler.CreateJwtSecurityToken(desc);
-        }
+    public JwtTokenResult CreateToken(User user, MapTalkieTokenOptions options)
+    {
+        var token = GenerateToken(user, options);
+        var tokenString = _tokenHandler.WriteToken(token);
+        return new JwtTokenResult(tokenString, DateTime.UtcNow + options.Lifetime);
+    }
 
-        public JwtTokenResult CreateToken(User user, MapTalkieTokenOptions options)
+    public JwtTokenResult CreateToken(User user)
+    {
+        return CreateToken(user, new MapTalkieTokenOptions
         {
-            var token = GenerateToken(user, options);
-            var tokenString = _tokenHandler.WriteToken(token);
-            return new JwtTokenResult(tokenString, DateTime.UtcNow + options.Lifetime);
-        }
+            Lifetime = _jwtSettings.TokenLifeTime
+        });
+    }
 
-        public JwtTokenResult CreateToken(User user)
+    private SecurityTokenDescriptor MakeTokenDescriptor(User user, MapTalkieTokenOptions options)
+    {
+        return new SecurityTokenDescriptor
         {
-            return CreateToken(user, new MapTalkieTokenOptions
+            Subject = new ClaimsIdentity(new[]
             {
-                Lifetime = _jwtSettings.TokenLifeTime
-            });
-        }
-
-        private SecurityTokenDescriptor MakeTokenDescriptor(User user, MapTalkieTokenOptions options)
-        {
-            return new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id)
-                }),
-                Expires = DateTime.UtcNow.Add(options.Lifetime),
-                Issuer = _jwtSettings.Issuer,
-                Audience = _jwtSettings.Audience.IsNullOrEmpty() ? null : _jwtSettings.Audience,
-                SigningCredentials = new SigningCredentials(_jwtSettings.GetSecurityKey(),
-                    SecurityAlgorithms.HmacSha256Signature)
-            };
-        }
+                new Claim(ClaimTypes.NameIdentifier, user.Id)
+            }),
+            Expires = DateTime.UtcNow.Add(options.Lifetime),
+            Issuer = _jwtSettings.Issuer,
+            Audience = _jwtSettings.Audience.IsNullOrEmpty() ? null : _jwtSettings.Audience,
+            SigningCredentials = new SigningCredentials(_jwtSettings.GetSecurityKey(),
+                SecurityAlgorithms.HmacSha256Signature)
+        };
     }
 }
