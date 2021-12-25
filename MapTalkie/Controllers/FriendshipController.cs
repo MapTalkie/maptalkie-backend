@@ -19,13 +19,13 @@ public class FriendshipController : AuthorizedController
         _friendshipService = friendshipService;
     }
 
-    [HttpGet("/friends")]
+    [HttpGet("friends")]
     public Task<FriendshipsView> GetFriends([FromServices] IFriendshipService friendshipService)
     {
         return _friendshipService.FindFriendships(RequireUserId());
     }
 
-    [HttpPost("/friendship/{userId}")]
+    [HttpPost("{userId}")]
     public async Task<IActionResult> RequestFriendship(string userId)
     {
         if (userId == RequireUserId())
@@ -36,7 +36,7 @@ public class FriendshipController : AuthorizedController
         return Ok();
     }
 
-    [HttpDelete("/friendship/{userId}")]
+    [HttpDelete("{userId}")]
     public async Task<IActionResult> RevokeFriendship(string userId)
     {
         if (userId == RequireUserId())
