@@ -50,7 +50,8 @@ public class MessagesController : AuthorizedController
                         Sender = lastMessage.Message.Sender.UserName,
                         Id = lastMessage.MessageId,
                         Read = lastMessage.Message.Read,
-                        Text = lastMessage.Message.Text
+                        Text = lastMessage.Message.Text,
+                        CreatedAt = lastMessage.Message.CreatedAt
                     }
             };
         var conversations = await conversationsQuery.Take(50).ToListAsync();
